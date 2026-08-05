@@ -1,20 +1,8 @@
-<!doctype html>
-<html lang="ja">
-<head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-  <title>FIRST BLAST</title><link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <div id="game"></div>
-  <div id="start" class="panel"><h1>FIRST <span>BLAST</span></h1><p>小さなアリーナでロボットと対決しよう！</p><button id="startButton">BLAST OFF</button><small>WASD 移動 / マウス 視点 / クリック 射撃 / Space ジャンプ / Shift ダッシュ / R リロード</small></div>
-  <div id="hud" class="hidden">
-    <div class="brand">FIRST <b>BLAST</b></div><div class="score">撃破 <b id="kills">0</b> / 5　 敗北 <b id="deaths">0</b> / 5</div>
-    <div id="crosshair"><i></i><i></i></div><div id="hitmarker">×</div>
-    <div class="health"><label>HP <b id="hpText">200</b></label><div><i id="hpBar"></i></div></div>
-    <div class="ammo"><span>PULSE BLASTER</span><b id="ammo">20</b><small id="reloadText"></small></div>
-  </div>
-  <div id="mobile" class="hidden"><div id="stick"><i></i></div><div id="look"></div><button id="fire">射撃</button><button id="jump">JUMP</button><button id="dash">DASH</button></div>
-  <div id="message" class="panel hidden"><h1 id="result">Victory!</h1><p id="resultDetail"></p><button id="again">もう一度遊ぶ</button></div>
-  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.module.js"}}</script>
-  <script type="module" src="main.js"></script>
-</body></html>
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>FIRST BLAST</title><link rel="stylesheet" href="style.css"></head>
+<body><div id="game"></div>
+<section id="start" class="panel"><h1>FIRST <span>BLAST</span></h1><p>カラフルなアリーナへ飛び込もう！</p><div class="choices" id="difficulty"><button data-value="easy" class="selected">かんたん</button><button data-value="normal">ふつう</button><button data-value="challenge">チャレンジ</button></div><label class="relax"><input id="relax" type="checkbox"> リラックスモード</label><button id="startButton" class="primary">BLAST OFF</button><button id="settingsButton" class="secondary">⚙ 設定</button><small>WASD 移動 / マウス 視点 / クリック 射撃 / Space ジャンプ / Shift ダッシュ / 1・2・3 武器</small></section>
+<section id="settings" class="panel hidden"><h2>設定</h2><div class="settings-grid"><label>効果音 <input id="setting-sfx" type="range" min="0" max="100"></label><label>BGM <input id="setting-bgm" type="range" min="0" max="100"></label><label>視点感度 <input id="setting-sensitivity" type="range" min="20" max="100"></label><label>エイムアシスト <select id="setting-aimAssist"><option value="off">オフ</option><option value="weak">弱い</option><option value="normal">普通</option><option value="strong">強い</option></select></label><label>照準サイズ <input id="setting-crosshairSize" type="range" min="70" max="150"></label><label>照準色 <input id="setting-crosshairColor" type="color"></label><label>ボタンサイズ <input id="setting-buttonSize" type="range" min="80" max="130"></label><label>画質 <select id="setting-quality"><option value="low">低</option><option value="medium">中</option><option value="high">高</option></select></label><label><input id="setting-cameraShake" type="checkbox"> カメラ振動</label><label><input id="setting-leftHanded" type="checkbox"> 左利きレイアウト</label></div><button id="closeSettings" class="primary">完了</button></section>
+<div id="hud" class="hidden"><header><div class="brand">FIRST <b>BLAST</b></div><div class="kills">撃破 <b id="kills">0</b> / 5</div><div class="deaths">敗北 <b id="deaths">0</b> / 5</div></header><div id="crosshair"><i></i><i></i></div><div class="health"><label>HP <b id="hpText">200</b></label><div><i id="hpBar"></i></div><small id="buffs"></small></div><div class="ammo"><span id="weaponName">PULSE BLASTER</span><b id="ammo">20</b><small id="reloadText"></small></div><div id="weaponSlots"><button data-weapon="0" class="selected">1 PULSE</button><button data-weapon="1">2 SPARK</button><button data-weapon="2">3 BUBBLE</button></div><div id="damageNumbers"></div></div>
+<div id="mobile" class="hidden"><div id="stick"><i></i></div><div id="look"></div><button id="fire">射撃</button><button id="jump">JUMP</button><button id="dash">DASH</button></div>
+<section id="message" class="panel hidden"><h1 id="result">Victory!</h1><p id="resultDetail"></p><button id="again" class="primary">もう一度遊ぶ</button></section>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.module.js"}}</script><script type="module" src="main.js"></script></body></html>
