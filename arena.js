@@ -4,12 +4,36 @@ const WALL_HEIGHT=9;
 // 本家ロブロックスのFPSステージに寄せた配色。白いタイル床と、青・ピンクのパネル壁。
 const COLOR={floor:0xeef1f8,seam:0xa9b5d1,wallBlue:0x5f79b8,wallPink:0xa9629d,trim:0x2f3a5e,cap:0xdfe6f4,block:0xdde4f1,blockDark:0xa9b7d6,blockEdge:0x8895b6,accentBlue:0x5f79b8,accentPink:0xa9629d,pad:0x3ce0e6};
 
+// ブロック上面のスタッド（凸ポチ）。本家で一番見分けのつく手がかり。白地に灰色の丸を1個だけ
+// 描き、色はマテリアル側で乗算して着ける。clone()しても画像本体は共有されるので、
+// 繰り返し回数だけ変えれば転送は1回で済む。
+let studSource=null;
+function studPattern(){
+  if(studSource)return studSource;
+  const size=64,canvas=document.createElement('canvas');canvas.width=canvas.height=size;
+  const c=canvas.getContext('2d'),radius=size*.26;c.fillStyle='#ffffff';c.fillRect(0,0,size,size);
+  c.beginPath();c.arc(size/2,size/2,radius,0,Math.PI*2);c.fillStyle='#dcdfe8';c.fill();
+  c.lineWidth=4;c.strokeStyle='#ffffff';c.beginPath();c.arc(size/2,size/2,radius,Math.PI*1.15,Math.PI*1.95);c.stroke();    // 上側のハイライト
+  c.strokeStyle='#9aa3bb';c.beginPath();c.arc(size/2,size/2,radius,Math.PI*.15,Math.PI*.95);c.stroke();                    // 下側の影
+  studSource=new THREE.CanvasTexture(canvas);studSource.wrapS=studSource.wrapT=THREE.RepeatWrapping;studSource.colorSpace=THREE.SRGBColorSpace;
+  return studSource;
+}
+
 export function createArena(scene,colliders){
   const obstacles=[], mat=color=>new THREE.MeshLambertMaterial({color,flatShading:true});
   const add=(geometry,color,x,y,z,solid=true,rotation=0)=>{const mesh=new THREE.Mesh(geometry,mat(color));mesh.position.set(x,y,z);mesh.rotation.y=rotation;mesh.castShadow=mesh.receiveShadow=true;scene.add(mesh);if(solid){colliders.push(new THREE.Box3().setFromObject(mesh));obstacles.push(mesh)}return mesh};
   const edgeMaterial=new THREE.LineBasicMaterial({color:COLOR.blockEdge,transparent:true,opacity:.55});
   const seamMaterial=new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.26});
   const outline=mesh=>mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry),edgeMaterial));
+  // 上面だけスタッド柄にする。BoxGeometryのグループを2つに詰め直すので、描画は1メッシュ2回まで。
+  // 面ごとに6マテリアルへ分けると描画回数が6倍になり、スマホでは重すぎる。
+  const studded=mesh=>{
+    const {width,depth}=mesh.geometry.parameters,top=mat(mesh.material.color.getHex());
+    top.map=studPattern().clone();top.map.needsUpdate=true;
+    top.map.repeat.set(Math.max(1,Math.round(width/1.4)),Math.max(1,Math.round(depth/1.4)));
+    mesh.geometry.groups.forEach(group=>{group.materialIndex=group.materialIndex===2?1:0});  // BoxGeometryのグループ2が+Y面。
+    mesh.material=[mesh.material,top];return mesh;
+  };
   // 壁パネルの継ぎ目。ロブロックスの大きなブロック壁のような分割線を引く。
   const seams=(width,height,columns,rows)=>{const points=[];for(let i=1;i<columns;i++){const x=-width/2+width*i/columns;points.push(x,-height/2,0,x,height/2,0)}for(let j=1;j<rows;j++){const y=-height/2+height*j/rows;points.push(-width/2,y,0,width/2,y,0)}const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(points,3));return new THREE.LineSegments(geometry,seamMaterial)};
 
@@ -28,15 +52,17 @@ export function createArena(scene,colliders){
   [[-20,-20],[20,-20],[-20,20],[20,20]].forEach(([x,z])=>outline(add(new THREE.BoxGeometry(2.6,WALL_HEIGHT,2.6),COLOR.cap,x,WALL_HEIGHT/2,z)));
 
   const crates=[[-14,-12],[-8,-5],[-15,7],[-7,14],[0,-13],[4,8],[12,-10],[15,2],[12,14],[-2,1]];
-  crates.forEach(([x,z],i)=>outline(add(new THREE.BoxGeometry(2.8,2.8,2.8),i%3?COLOR.block:COLOR.blockDark,x,1.4,z)));
+  crates.forEach(([x,z],i)=>studded(outline(add(new THREE.BoxGeometry(2.8,2.8,2.8),i%3?COLOR.block:COLOR.blockDark,x,1.4,z))));
   [[-12,1],[10,-1],[0,-18]].forEach(([x,z])=>{const pad=add(new THREE.CylinderGeometry(2.3,2.3,.35,12),COLOR.pad,x,.18,z,false);pad.material.emissive=new THREE.Color(COLOR.pad);pad.material.emissiveIntensity=.6;pad.userData.jumpPad=true});
-  [[-4,-7,5,1.6],[7,14,7,1.1],[10,7,1.5,6]].forEach(([x,z,w,d])=>outline(add(new THREE.BoxGeometry(w,2.2,d),COLOR.accentPink,x,1.1,z)));
+  [[-4,-7,5,1.6],[7,14,7,1.1],[10,7,1.5,6]].forEach(([x,z,w,d])=>studded(outline(add(new THREE.BoxGeometry(w,2.2,d),COLOR.accentPink,x,1.1,z))));
   // 高台、坂、橋、トンネル、円柱、コンテナ、低い遮蔽物。
-  outline(add(new THREE.BoxGeometry(8,1.5,6),COLOR.accentBlue,-8,.75,-14));add(new THREE.BoxGeometry(6,.5,5),COLOR.block,-3,.5,-14,true,0).rotation.z=-.16;
-  outline(add(new THREE.BoxGeometry(7,.45,2.2),COLOR.cap,5,1.8,-7));add(new THREE.BoxGeometry(.5,1.8,2.2),COLOR.blockDark,1.8,.9,-7);add(new THREE.BoxGeometry(.5,1.8,2.2),COLOR.blockDark,8.2,.9,-7);
-  add(new THREE.BoxGeometry(6,.6,4),COLOR.cap,-7,3,6);add(new THREE.BoxGeometry(.6,3,4),COLOR.accentBlue,-10,1.5,6);add(new THREE.BoxGeometry(.6,3,4),COLOR.accentBlue,-4,1.5,6);
-  [[-16,-5],[16,-8],[2,15]].forEach(([x,z],i)=>add(new THREE.CylinderGeometry(1.1,1.1,3,10),[COLOR.block,COLOR.accentPink,COLOR.accentBlue][i],x,1.5,z));
-  [[14,-15,COLOR.accentBlue],[-16,14,COLOR.accentPink]].forEach(([x,z,color])=>outline(add(new THREE.BoxGeometry(5,2.5,2.5),color,x,1.25,z)));
+  studded(outline(add(new THREE.BoxGeometry(8,1.5,6),COLOR.accentBlue,-8,.75,-14)));add(new THREE.BoxGeometry(6,.5,5),COLOR.block,-3,.5,-14,true,0).rotation.z=-.16;
+  studded(outline(add(new THREE.BoxGeometry(7,.45,2.2),COLOR.cap,5,1.8,-7)));add(new THREE.BoxGeometry(.5,1.8,2.2),COLOR.blockDark,1.8,.9,-7);add(new THREE.BoxGeometry(.5,1.8,2.2),COLOR.blockDark,8.2,.9,-7);
+  studded(add(new THREE.BoxGeometry(6,.6,4),COLOR.cap,-7,3,6));add(new THREE.BoxGeometry(.6,3,4),COLOR.accentBlue,-10,1.5,6);add(new THREE.BoxGeometry(.6,3,4),COLOR.accentBlue,-4,1.5,6);
+  // 3本目はプレイヤーの初期位置(0,16)のすぐ脇に立っていて、開始直後の視界の右側4分の1を
+  // 塞いでいた。柱の役目は残したまま、開始位置から離した場所へ移す。
+  [[-16,-5],[16,-8],[2,11]].forEach(([x,z],i)=>add(new THREE.CylinderGeometry(1.1,1.1,3,10),[COLOR.block,COLOR.accentPink,COLOR.accentBlue][i],x,1.5,z));
+  [[14,-15,COLOR.accentBlue],[-16,14,COLOR.accentPink]].forEach(([x,z,color])=>studded(outline(add(new THREE.BoxGeometry(5,2.5,2.5),color,x,1.25,z))));
   [[-1,6,5],[14,7,4],[-14,-1,4]].forEach(([x,z,w])=>outline(add(new THREE.BoxGeometry(w,1.25,.7),COLOR.blockDark,x,.625,z)));
 
   // 昼間の空。上へ行くほど濃い青、地平線へ向かうほど淡くなるドームを張る。
