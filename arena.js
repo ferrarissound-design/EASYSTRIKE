@@ -39,7 +39,12 @@ export function createArena(scene,colliders){
   [[14,-15,COLOR.accentBlue],[-16,14,COLOR.accentPink]].forEach(([x,z,color])=>outline(add(new THREE.BoxGeometry(5,2.5,2.5),color,x,1.25,z)));
   [[-1,6,5],[14,7,4],[-14,-1,4]].forEach(([x,z,w])=>outline(add(new THREE.BoxGeometry(w,1.25,.7),COLOR.blockDark,x,.625,z)));
 
-  scene.add(new THREE.HemisphereLight(0xe3ecff,0x2b3358,1.7));const sun=new THREE.DirectionalLight(0xfff6ec,1.6);sun.position.set(8,18,10);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);scene.add(sun);
+  // 昼間の空。上へ行くほど濃い青、地平線へ向かうほど淡くなるドームを張る。
+  const sky=new THREE.SphereGeometry(70,16,12),skyColors=[],vertices=sky.attributes.position,zenith=new THREE.Color(0x4d8ed6),horizon=new THREE.Color(0xdcecfb);
+  for(let i=0;i<vertices.count;i++){const height=Math.max(0,Math.min(1,vertices.getY(i)/70*1.5+.25)),color=horizon.clone().lerp(zenith,height);skyColors.push(color.r,color.g,color.b)}
+  sky.setAttribute('color',new THREE.Float32BufferAttribute(skyColors,3));
+  scene.add(new THREE.Mesh(sky,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide,fog:false})));
+  scene.add(new THREE.HemisphereLight(0xdcecff,0x8a93b5,1.8));const sun=new THREE.DirectionalLight(0xfff6ec,1.7);sun.position.set(8,18,10);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);scene.add(sun);
   // 青とピンクの照明が白い床を染め、本家のような色の光溜まりを作る。
   [[-13,7,-9,0x4f9dff],[13,7,9,0xff5aa8],[13,7,-11,0xff5aa8],[-13,7,11,0x4f9dff]].forEach(([x,y,z,color])=>{const light=new THREE.PointLight(color,300,30,2);light.position.set(x,y,z);scene.add(light)});
   return obstacles;

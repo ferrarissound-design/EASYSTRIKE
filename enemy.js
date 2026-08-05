@@ -9,13 +9,36 @@ function roundedBox(width,height,depth,radius=.18){
   geometry.translate(0,0,-(depth-r*2)/2);geometry.computeVertexNormals();return geometry;
 }
 
+// 敵を強調するシェル。面の向きが視線と垂直に近いほど（＝輪郭ほど）明るく光り、
+// 内側はごく薄い赤のオーバーレイになる。加算合成なので背景から少し浮いて見える。
+function highlightMaterial(){
+  return new THREE.ShaderMaterial({
+    uniforms:{glowColor:{value:new THREE.Color(0xff5545)},rimPower:{value:2.6},rimStrength:{value:.8},fill:{value:.1}},
+    vertexShader:'varying vec3 vNormalView;varying vec3 vViewDir;void main(){vec4 viewPosition=modelViewMatrix*vec4(position,1.);vNormalView=normalize(normalMatrix*normal);vViewDir=normalize(-viewPosition.xyz);gl_Position=projectionMatrix*viewPosition;}',
+    fragmentShader:'uniform vec3 glowColor;uniform float rimPower;uniform float rimStrength;uniform float fill;varying vec3 vNormalView;varying vec3 vViewDir;void main(){float rim=pow(1.-abs(dot(normalize(vNormalView),normalize(vViewDir))),rimPower);gl_FragColor=vec4(glowColor,fill+rim*rimStrength);}',
+    transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,
+  });
+}
+// 背後に敷く柔らかい赤い光。ポストエフェクトを使わずに軽くブルームのように見せる。
+function haloSprite(){
+  const size=128,canvas=document.createElement('canvas');canvas.width=canvas.height=size;
+  const context=canvas.getContext('2d'),gradient=context.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2);
+  gradient.addColorStop(0,'rgba(255,90,70,.55)');gradient.addColorStop(.45,'rgba(255,60,45,.2)');gradient.addColorStop(1,'rgba(255,40,30,0)');
+  context.fillStyle=gradient;context.fillRect(0,0,size,size);
+  const texture=new THREE.CanvasTexture(canvas),sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true}));
+  sprite.scale.set(4.4,5.4,1);sprite.position.y=2.1;sprite.raycast=()=>{};return sprite;
+}
+
 export class Enemy {
   constructor(scene,colliders,obstacles,effects,audio){this.scene=scene;this.colliders=colliders;this.obstacles=obstacles;this.effects=effects;this.audio=audio;this.ray=new THREE.Raycaster();this.animTime=0;this.recoil=0;this.moving=false;this.deathTilt=0;this.muzzleWorld=new THREE.Vector3();this.group=this.createModel();scene.add(this.group);this.onDeath=null;this.gameEnded=false;this.respawn(new THREE.Vector3())}
   createModel(){
     const group=new THREE.Group();
-    const body=new THREE.MeshLambertMaterial({color:0xff2b26,emissive:0x4a0a06}),metal=new THREE.MeshLambertMaterial({color:0x2b3038,emissive:0x05070a});
+    // 本体は少し暗めの赤にして陰影と立体感を残す。強調は上から重ねるシェルで行う。
+    const body=new THREE.MeshLambertMaterial({color:0xb03a30,emissive:0x2a0705}),metal=new THREE.MeshLambertMaterial({color:0x2b3038,emissive:0x05070a});
     this.material=body;this.baseEmissive=body.emissive.getHex();
-    const piece=(parent,geometry,x,y,z,material=body)=>{const mesh=new THREE.Mesh(geometry,material);mesh.position.set(x,y,z);mesh.castShadow=true;parent.add(mesh);return mesh};
+    this.highlight=highlightMaterial();this.halo=haloSprite();group.add(this.halo);
+    // 少し大きいシェルを重ねる。中は薄い赤のオーバーレイ、ふちほど明るく光る。
+    const piece=(parent,geometry,x,y,z,material=body)=>{const mesh=new THREE.Mesh(geometry,material);mesh.position.set(x,y,z);mesh.castShadow=true;parent.add(mesh);if(material===body){const shell=new THREE.Mesh(geometry,this.highlight);shell.scale.setScalar(1.05);shell.raycast=()=>{};mesh.add(shell)}return mesh};
     const joint=(parent,x,y,z)=>{const pivot=new THREE.Group();pivot.position.set(x,y,z);parent.add(pivot);return pivot};
     // 上半身（走ると上下に揺れる）
     const upper=joint(group,0,0,0);this.upper=upper;
@@ -72,7 +95,8 @@ export class Enemy {
     this.moveDirection=direction;this.moveSpeed=this.config.enemySpeed*(goal==='retreat'?1.2:1);
     if(Math.random()<this.config.jump*.16&&this.group.position.y===0)this.group.position.y=.8;if(Math.random()<this.config.dash*.16)this.safeMove(direction,1.1);
     if(visible&&distance<FIRE_RANGE&&this.shotTimer<=0){if(this.burstShots>=3){this.shotTimer=1.3;this.burstShots=0;this.strafeDirection*=-1;return}this.shotTimer=this.config.reaction;this.burstShots++;this.muzzleFlash();if(this.seenTime>this.config.reaction&&Math.random()<this.config.accuracy)onShot(this.config.attack);else onShot(0)}}
-  damage(amount){if(!this.alive)return;this.hp-=amount;this.material.emissive.set(0x88ffff);setTimeout(()=>{if(this.alive)this.material.emissive.set(this.baseEmissive)},90);if(this.hp<=0)this.die()}
+  flash(hit){this.highlight.uniforms.glowColor.value.set(hit?0xffffff:0xff5545);this.highlight.uniforms.rimStrength.value=hit?1.7:.8;this.highlight.uniforms.fill.value=hit?.35:.1}
+  damage(amount){if(!this.alive)return;this.hp-=amount;this.material.emissive.set(0x88ffff);this.flash(true);setTimeout(()=>{if(this.alive){this.material.emissive.set(this.baseEmissive);this.flash(false)}},90);if(this.hp<=0)this.die()}
   die(){if(!this.alive)return;this.alive=false;this.deathTilt=0;this.material.emissive.set(0xffffff);setTimeout(()=>{this.group.visible=false;this.effects.burst(this.group.position.clone().add(new THREE.Vector3(0,1.5,0)),0xff8a31,18,.22,.9)},420);this.audio.play('kill');this.onDeath?.();setTimeout(()=>{if(!this.gameEnded)this.respawn(this.lastPlayerPosition||new THREE.Vector3())},2000)}
-  respawn(playerPosition){const candidates=[[-16,-15],[16,-15],[-16,15],[16,15],[0,-16]];const safe=candidates.map(([x,z])=>new THREE.Vector3(x,0,z)).sort((a,b)=>b.distanceToSquared(playerPosition)-a.distanceToSquared(playerPosition))[0];this.group.position.copy(safe);this.group.rotation.set(0,0,0);this.group.visible=true;this.material.emissive.set(this.baseEmissive);this.hp=this.maxHp||100;this.alive=true;this.deathTilt=0;this.recoil=0;this.moving=false;this.animTime=0;this.moveDirection=null;this.moveSpeed=0;this.thinkTimer=1;this.shotTimer=1.2;this.seenTime=0;this.burstShots=0;this.strafeDirection=Math.random()<.5?-1:1;this.effects?.ring(safe,0x7eeeff)}
+  respawn(playerPosition){const candidates=[[-16,-15],[16,-15],[-16,15],[16,15],[0,-16]];const safe=candidates.map(([x,z])=>new THREE.Vector3(x,0,z)).sort((a,b)=>b.distanceToSquared(playerPosition)-a.distanceToSquared(playerPosition))[0];this.group.position.copy(safe);this.group.rotation.set(0,0,0);this.group.visible=true;this.material.emissive.set(this.baseEmissive);this.flash(false);this.hp=this.maxHp||100;this.alive=true;this.deathTilt=0;this.recoil=0;this.moving=false;this.animTime=0;this.moveDirection=null;this.moveSpeed=0;this.thinkTimer=1;this.shotTimer=1.2;this.seenTime=0;this.burstShots=0;this.strafeDirection=Math.random()<.5?-1:1;this.effects?.ring(safe,0x7eeeff)}
 }
