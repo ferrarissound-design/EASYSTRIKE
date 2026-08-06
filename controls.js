@@ -6,10 +6,13 @@ export class Controls {
     this.look = { x: 0, y: 0 };
     this.keys = {};
     this.fire = this.aim = this.jump = this.crouch = false;
-    this.firePressed = false;
+    this.firePressed = this.jumpPressed = false;
     this.crouchPressed = false;
     this.quickMelee = this.quickUtility = false;
-    this.mobile = matchMedia('(pointer: coarse)').matches;
+    this.mobile = matchMedia('(pointer: coarse)').matches || new URLSearchParams(location.search).has('forceTouch');
+    this.lastInput = this.mobile ? 'touch' : 'mouse';
+    this.touchLooking = false;
+    document.body.classList.toggle('force-touch', this.mobile);
     this.bindKeyboard();
     this.bindPointer();
     this.bindTouchControls();
@@ -34,15 +37,19 @@ export class Controls {
     });
     addEventListener('mousemove', event => {
       if (document.pointerLockElement !== this.element) return;
+      this.lastInput = 'mouse';
       const scale = .001 + this.settings.sensitivity * .00002;
       this.look.x += event.movementX * scale;
       this.look.y += event.movementY * scale;
     });
     addEventListener('mousedown', event => {
+      if (this.mobile) return;
+      this.lastInput = 'mouse';
       if (event.button === 0) { this.fire = true; this.firePressed = true; }
       if (event.button === 2) this.aim = true;
     });
     addEventListener('mouseup', event => {
+      if (this.mobile) return;
       if (event.button === 0) this.fire = false;
       if (event.button === 2) this.aim = false;
     });
@@ -54,6 +61,7 @@ export class Controls {
     let stickId = null;
     stick.onpointerdown = event => {
       event.preventDefault();
+      this.lastInput = 'touch';
       stickId = event.pointerId;
       stick.setPointerCapture(stickId);
     };
@@ -78,6 +86,9 @@ export class Controls {
     let lastX = 0;
     let lastY = 0;
     look.onpointerdown = event => {
+      event.preventDefault();
+      this.lastInput = 'touch';
+      this.touchLooking = true;
       lookId = event.pointerId;
       lastX = event.clientX;
       lastY = event.clientY;
@@ -85,36 +96,45 @@ export class Controls {
     };
     look.onpointermove = event => {
       if (event.pointerId !== lookId) return;
+      this.lastInput = 'touch';
       const scale = .0013 + this.settings.sensitivity * .000018;
       this.look.x += (event.clientX - lastX) * scale;
       this.look.y += (event.clientY - lastY) * scale;
       lastX = event.clientX;
       lastY = event.clientY;
     };
-    look.onpointerup = look.onpointercancel = () => { lookId = null; };
+    look.onpointerup = look.onpointercancel = event => {
+      if (event.pointerId !== lookId) return;
+      lookId = null;
+      this.touchLooking = false;
+    };
 
-    ['fire', 'jump', 'crouch', 'aim', 'quickMelee', 'quickUtility'].forEach(property => {
+    ['fire', 'jump', 'crouch', 'aim', 'reload', 'quickMelee', 'quickUtility'].forEach(property => {
       const button = document.getElementById(property);
       button.onpointerdown = event => {
         event.preventDefault();
         event.stopPropagation();
+        this.lastInput = 'touch';
         button.setPointerCapture(event.pointerId);
-        this[property] = true;
+        if (property === 'reload') this.reload?.();
+        else this[property] = true;
         if (property === 'fire') this.firePressed = true;
+        if (property === 'jump') this.jumpPressed = true;
         if (property === 'crouch') this.crouchPressed = true;
       };
       button.onpointerup = button.onpointercancel = event => {
         event.stopPropagation();
-        if (!['quickMelee', 'quickUtility'].includes(property)) this[property] = false;
+        if (!['reload', 'quickMelee', 'quickUtility'].includes(property)) this[property] = false;
       };
     });
   }
 
   clearActions() {
     this.fire = this.aim = this.jump = this.crouch = false;
-    this.firePressed = false;
+    this.firePressed = this.jumpPressed = false;
     this.crouchPressed = false;
     this.quickMelee = this.quickUtility = false;
+    this.touchLooking = false;
     this.keys = {};
   }
 
@@ -123,7 +143,7 @@ export class Controls {
     const y = this.move.y + (this.keys.KeyW ? 1 : 0) - (this.keys.KeyS ? 1 : 0);
     const result = {
       x, y,
-      jump: this.jump || this.keys.Space,
+      jump: this.jump || this.jumpPressed || this.keys.Space,
       crouch: this.crouch || this.keys.KeyC || this.keys.ControlLeft || this.crouchPressed,
       sprint: this.keys.ShiftLeft || this.keys.ShiftRight,
       fire: this.fire || this.firePressed,
@@ -132,6 +152,7 @@ export class Controls {
       quickUtility: this.quickUtility,
     };
     this.firePressed = false;
+    this.jumpPressed = false;
     this.crouchPressed = false;
     this.quickMelee = this.quickUtility = false;
     return result;

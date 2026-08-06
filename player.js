@@ -1,14 +1,17 @@
 import * as THREE from 'three';
+import { JumpController } from './jumpController.js';
+import { MOBILE_TUNING } from './mobileTuning.js';
 
 const STANDING_EYE = 1.7;
 const CROUCH_EYE = 1.12;
 
 export class Player {
-  constructor(camera, colliders, effects, audio) {
+  constructor(camera, colliders, effects, audio, settings) {
     this.camera = camera;
     this.colliders = colliders;
     this.effects = effects;
     this.audio = audio;
+    this.settings = settings;
     this.position = new THREE.Vector3(0, STANDING_EYE, 16);
     this.velocity = new THREE.Vector3();
     this.yaw = this.pitch = 0;
@@ -18,8 +21,8 @@ export class Player {
     this.slideTimer = 0;
     this.slideDirection = new THREE.Vector3();
     this.wasCrouch = false;
-    this.wasJump = false;
     this.remainingAirJumps = 0;
+    this.jumpController = new JumpController(settings);
     this.modifiers = { airJumps: 0, lowHealthSpeed: 1 };
     this.onSlide = null;
     camera.position.copy(this.position);
@@ -45,15 +48,17 @@ export class Player {
     this.crouched = this.sliding = this.sprinting = false;
     this.slideTimer = 0;
     this.wasCrouch = false;
-    this.wasJump = false;
+    this.jumpController.reset();
     this.remainingAirJumps = this.modifiers.airJumps;
     this.camera.rotation.set(0, yaw, 0, 'YXZ');
     this.camera.position.copy(this.position);
   }
 
-  update(dt, input, look, aim = { x: 0, y: 0, strength: 0 }) {
-    this.yaw -= look.x * (1 - aim.strength * .35) + aim.x * dt;
-    this.pitch = Math.max(-1.35, Math.min(1.35, this.pitch - look.y * (1 - aim.strength * .35) + aim.y * dt));
+  update(dt, input, look, aim = { yaw: 0, pitch: 0, slowdown: 1 }) {
+    this.yaw -= look.x * (aim.slowdown ?? 1);
+    this.yaw += (aim.yaw || 0) * dt;
+    this.pitch = Math.max(-1.35, Math.min(1.35,
+      this.pitch - look.y * (aim.slowdown ?? 1) + (aim.pitch || 0) * dt));
     look.x = look.y = 0;
 
     const forward = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
@@ -84,23 +89,34 @@ export class Player {
       let speed = this.crouched ? 4.4 : this.sprinting ? 9.1 : 7;
       if (this.hp / this.maxHp < .3) speed *= this.modifiers.lowHealthSpeed;
       if (input.aim) speed *= .78;
-      this.velocity.x = wish.x * speed;
-      this.velocity.z = wish.z * speed;
+      const targetX = wish.x * speed;
+      const targetZ = wish.z * speed;
+      if (this.grounded) {
+        this.velocity.x = targetX;
+        this.velocity.z = targetZ;
+      } else {
+        const control = Math.min(1, MOBILE_TUNING.movement.AirControl * dt);
+        this.velocity.x += (targetX - this.velocity.x) * control;
+        this.velocity.z += (targetZ - this.velocity.z) * control;
+      }
     }
 
-    const jumpPressed = input.jump && !this.wasJump;
-    this.wasJump = input.jump;
-    if (jumpPressed && (this.grounded || this.remainingAirJumps > 0) && !this.sliding) {
-      const airJump = !this.grounded;
-      if (airJump) this.remainingAirJumps--;
-      this.velocity.y = 8.35;
+    const jump = this.jumpController.update(dt, {
+      held: input.jump,
+      grounded: this.grounded,
+      airJumps: this.remainingAirJumps,
+    });
+    if (jump.jump) {
+      if (jump.airJump) this.remainingAirJumps--;
+      this.velocity.y = MOBILE_TUNING.movement.JumpForce;
       this.grounded = false;
+      this.sliding = false;
       this.crouched = false;
       this.audio.play('jump');
-      this.effects.burst(this.position.clone().setY(Math.max(.12, this.position.y - 1)), airJump ? 0x76eaff : 0xd9d0b7, 4, .14, .28);
+      this.effects.burst(this.position.clone().setY(Math.max(.12, this.position.y - 1)), jump.airJump ? 0x76eaff : 0xd9d0b7, 4, .14, .28);
     }
 
-    this.velocity.y -= 22 * dt;
+    this.velocity.y -= MOBILE_TUNING.movement.Gravity * dt;
     this.moveAxis('x', this.velocity.x * dt);
     this.moveAxis('z', this.velocity.z * dt);
 
@@ -122,6 +138,10 @@ export class Player {
     }
     this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
     this.camera.position.copy(this.position);
+  }
+
+  jumpDebug() {
+    return this.jumpController.debug(this.grounded, this.remainingAirJumps);
   }
 
   moveAxis(axis, distance) {
