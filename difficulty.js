@@ -1,11 +1,19 @@
 export const DIFFICULTIES = {
-  easy: { label: 'かんたん', playerHp: 200, enemyHp: 80, enemySpeed: 2.2, accuracy: 0.25, reaction: 1.15, attack: 12, assist: 0.75, dash: 0.03, jump: 0.04 },
-  normal: { label: 'ふつう', playerHp: 150, enemyHp: 100, enemySpeed: 3.1, accuracy: 0.4, reaction: 0.75, attack: 16, assist: 0.45, dash: 0.08, jump: 0.09 },
-  challenge: { label: 'チャレンジ', playerHp: 100, enemyHp: 120, enemySpeed: 4, accuracy: 0.58, reaction: 0.45, attack: 19, assist: 0.2, dash: 0.16, jump: 0.14 },
+  easy: {
+    label: 'ROOKIE', playerHp: 100, enemyHp: 100, enemySpeed: 4.8,
+    accuracy: .58, reaction: .72, attack: 14, assist: .72, jump: .02,
+  },
+  normal: {
+    label: 'RIVAL', playerHp: 100, enemyHp: 100, enemySpeed: 6.2,
+    accuracy: .76, reaction: .48, attack: 16, assist: .42, jump: .06,
+  },
+  challenge: {
+    label: 'ACE', playerHp: 100, enemyHp: 100, enemySpeed: 7.3,
+    accuracy: .9, reaction: .3, attack: 18, assist: .2, jump: .1,
+  },
 };
 
 export function loadDifficulty() {
   const value = localStorage.getItem('firstBlastDifficulty');
   return DIFFICULTIES[value] ? value : 'easy';
 }
-

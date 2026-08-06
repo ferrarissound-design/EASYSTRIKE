@@ -52,7 +52,7 @@ function faceTexture(kind){
 }
 
 export class Enemy {
-  constructor(scene,colliders,obstacles,effects,audio){this.scene=scene;this.colliders=colliders;this.obstacles=obstacles;this.effects=effects;this.audio=audio;this.ray=new THREE.Raycaster();this.animTime=0;this.recoil=0;this.moving=false;this.exploding=0;this.flashToken=0;this.visibleToPlayer=false;this.muzzleWorld=new THREE.Vector3();this.group=this.createModel();scene.add(this.group);this.onDeath=null;this.gameEnded=false;this.respawn(new THREE.Vector3())}
+  constructor(scene,colliders,obstacles,effects,audio){this.scene=scene;this.colliders=colliders;this.obstacles=obstacles;this.effects=effects;this.audio=audio;this.ray=new THREE.Raycaster();this.animTime=0;this.recoil=0;this.moving=false;this.exploding=0;this.flashToken=0;this.visibleToPlayer=false;this.muzzleWorld=new THREE.Vector3();this.group=this.createModel();scene.add(this.group);this.shots=Array.from({length:12},()=>this.createShot());this.onDeath=null;this.gameEnded=false;this.respawn(new THREE.Vector3(0,0,-16))}
   createModel(){
     const group=new THREE.Group();
     // 本家アバターの色分け。シャツは赤のままにしてシルエットの赤さを保ち、
@@ -65,12 +65,12 @@ export class Enemy {
     this.halo=haloSprite();group.add(this.halo);
     const rig=new THREE.Group();rig.scale.setScalar(S);group.add(rig);this.rig=rig;this.parts=[];
     // 強調シェルは本体パーツにだけ重ねる。銃には付けない。
-    const piece=(parent,geometry,x,y,z,material,glow=true)=>{const mesh=new THREE.Mesh(geometry,material);mesh.position.set(x,y,z);mesh.castShadow=true;parent.add(mesh);if(glow){const shell=new THREE.Mesh(geometry,this.highlight);shell.scale.setScalar(1.05);shell.renderOrder=1;shell.raycast=()=>{};mesh.add(shell);this.parts.push({mesh,rest:mesh.position.clone(),velocity:new THREE.Vector3(),spin:0})}return mesh};
+    const piece=(parent,geometry,x,y,z,material,glow=true)=>{const mesh=new THREE.Mesh(geometry,material);mesh.position.set(x,y,z);mesh.castShadow=true;parent.add(mesh);if(glow){mesh.userData.hitZone='body';const shell=new THREE.Mesh(geometry,this.highlight);shell.scale.setScalar(1.05);shell.renderOrder=1;shell.raycast=()=>{};mesh.add(shell);this.parts.push({mesh,rest:mesh.position.clone(),velocity:new THREE.Vector3(),spin:0})}return mesh};
     const joint=(parent,x,y,z)=>{const pivot=new THREE.Group();pivot.position.set(x,y,z);parent.add(pivot);return pivot};
     // 上半身（走ると上下に揺れる）
     const upper=joint(rig,0,0,0);this.upper=upper;
     piece(upper,roundedBox(2,2,1),0,3,0,shirt);                                                  // 胴＝シャツ
-    this.head=joint(upper,0,4,0);const head=piece(this.head,roundedBox(1.5,1.25,1.15),0,.625,0,skin);  // 頭は胴より細く、奥行きも胴とほぼ同じにして張り出さないようにする。
+    this.head=joint(upper,0,4,0);const head=piece(this.head,roundedBox(1.5,1.25,1.15),0,.625,0,skin);head.userData.hitZone='head';  // 頭は胴より細く、奥行きも胴とほぼ同じにして張り出さないようにする。
     // 顔。ExtrudeGeometryのUVは素直でないので、頭の前に薄い板を1枚重ねる。
     // シェル（1.05倍・加算合成）より前に出し、描画順も後にして赤く染まらないようにする。
     this.face=new THREE.Mesh(new THREE.PlaneGeometry(1.15,.95),new THREE.MeshBasicMaterial({map:faceTexture('normal'),transparent:true,depthWrite:false}));
@@ -89,10 +89,11 @@ export class Enemy {
     this.parts.push({mesh:gun,rest:gun.position.clone(),velocity:new THREE.Vector3(),spin:0});
     // 当たり判定を補う見えない箱。等身を縮めたぶん狙いにくくならないよう、胴・頭・肩の
     // 隙間を埋める。materialがvisible:falseなので描画はされず、レイキャストだけ拾う。
-    const proxy=new THREE.Mesh(new THREE.BoxGeometry(3.6,3.4,1.6),new THREE.MeshBasicMaterial({visible:false}));proxy.position.set(0,3.5,0);rig.add(proxy);
+    const proxy=new THREE.Mesh(new THREE.BoxGeometry(3.6,3.4,1.6),new THREE.MeshBasicMaterial({visible:false}));proxy.position.set(0,3.5,0);proxy.userData.hitZone='body';rig.add(proxy);
     return group;
   }
-  configure(config,pickups){this.config=config;this.pickups=pickups;this.maxHp=config.enemyHp;this.hp=this.maxHp}
+  createShot(){const mesh=new THREE.Mesh(new THREE.SphereGeometry(.09,6,4),new THREE.MeshBasicMaterial({color:0xffbd67}));mesh.visible=false;this.scene.add(mesh);return{mesh,active:false,velocity:new THREE.Vector3(),life:0}}
+  configure(config){this.config=config;this.maxHp=config.enemyHp;this.hp=this.maxHp;this.clearShots()}
   // 敵の高さに依存する参照点。他のファイルはこれを使い、直接オフセットを書かない。
   get aimPoint(){return new THREE.Vector3(this.group.position.x,this.group.position.y+CENTER_Y,this.group.position.z)}   // 胸のあたり。狙点と視線の原点。
   get labelPoint(){return new THREE.Vector3(this.group.position.x,this.group.position.y+TAG_Y,this.group.position.z)}    // 頭上。ダメージ数字とネームタグ用。
@@ -114,24 +115,27 @@ export class Enemy {
   muzzleFlash(){this.muzzle.getWorldPosition(this.muzzleWorld);this.effects.burst(this.muzzleWorld,0xffd27a,3,.13,.16);this.recoil=1}
   canSeePlayer(player){const origin=new THREE.Vector3(this.group.position.x,this.group.position.y+HEAD_Y,this.group.position.z),target=player.position.clone(),direction=target.sub(origin),distance=direction.length();this.ray.set(origin,direction.normalize());const blocker=this.ray.intersectObjects(this.obstacles,false)[0];return !blocker||blocker.distance>distance}
   safeMove(direction,distance){const previous=this.group.position.clone();this.group.position.addScaledVector(direction,distance);const box=new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(this.group.position.x,1,this.group.position.z),new THREE.Vector3(1.4,2,1.4));if(Math.abs(this.group.position.x)>19||Math.abs(this.group.position.z)>19||this.colliders.some(c=>c.intersectsBox(box))){this.group.position.copy(previous);const side=new THREE.Vector3(-direction.z,0,direction.x);this.group.position.addScaledVector(side,distance);return false}return true}
-  update(dt,player,onShot){this.animate(dt);if(!this.alive)return;this.thinkTimer-=dt;this.shotTimer-=dt;this.group.position.y=Math.max(0,this.group.position.y-8*dt);const toPlayer=player.position.clone().sub(this.group.position),distance=toPlayer.length(),visible=this.canSeePlayer(player);this.group.lookAt(player.position.x,this.group.position.y,player.position.z);
+  fire(player){const shot=this.shots.find(candidate=>!candidate.active);if(!shot)return;this.muzzle.getWorldPosition(this.muzzleWorld);const target=player.position.clone();const direction=target.sub(this.muzzleWorld).normalize();const spread=(1-this.config.accuracy)*.12;direction.x+=(Math.random()-.5)*spread;direction.y+=(Math.random()-.5)*spread;direction.z+=(Math.random()-.5)*spread;direction.normalize();shot.active=true;shot.life=2;shot.mesh.visible=true;shot.mesh.position.copy(this.muzzleWorld);shot.velocity.copy(direction).multiplyScalar(25);this.effects.tracer(this.muzzleWorld.clone(),this.muzzleWorld.clone().addScaledVector(direction,2.2),0xffc36f)}
+  updateShots(dt,player,onShot){for(const shot of this.shots){if(!shot.active)continue;shot.life-=dt;const previous=shot.mesh.position.clone(),step=shot.velocity.clone().multiplyScalar(dt),distance=step.length(),direction=step.clone().normalize();this.ray.set(previous,direction);const blocker=this.ray.intersectObjects(this.obstacles,false)[0];if(blocker&&blocker.distance<=distance){this.effects.burst(blocker.point,0xffb56d,2,.07,.16);shot.active=false;shot.mesh.visible=false;continue}shot.mesh.position.add(step);const segment=new THREE.Line3(previous,shot.mesh.position),closest=segment.closestPointToPoint(player.position,true,new THREE.Vector3());if(closest.distanceTo(player.position)<.58){onShot(this.config.attack,previous);shot.active=false;shot.mesh.visible=false;continue}if(shot.life<=0){shot.active=false;shot.mesh.visible=false}}}
+  clearShots(){this.shots?.forEach(shot=>{shot.active=false;shot.mesh.visible=false})}
+  update(dt,player,onShot){this.animate(dt);this.updateShots(dt,player,onShot);if(!this.alive)return;this.thinkTimer-=dt;this.shotTimer-=dt;this.group.position.y=Math.max(0,this.group.position.y-8*dt);const toPlayer=player.position.clone().sub(this.group.position),distance=toPlayer.length(),visible=this.canSeePlayer(player);this.group.lookAt(player.position.x,this.group.position.y,player.position.z);
     this.visibleToPlayer=visible;                                    // ネームタグの表示判定に使い回す（毎フレーム計算済みなので追加コストなし）。
     this.seenTime=visible?this.seenTime+dt:0;                        // プレイヤーを見続けた実時間。これが反応時間を超えると命中させられる。
     if(this.moveDirection){const before=this.group.position.clone();this.safeMove(this.moveDirection,this.moveSpeed*dt);this.moving=before.distanceToSquared(this.group.position)>1e-6}
     if(this.thinkTimer>0)return;this.thinkTimer=.16;                 // 進む向きと射撃の判断だけを一定間隔で行い、移動自体は毎フレーム続ける。
-    const forward=toPlayer.setY(0).normalize(),direction=forward.clone();let goal='fight';const health=this.pickups?.nearestHealth(this.group.position);
-    if(this.hp<=this.maxHp*.3&&health){direction.copy(health.position).sub(this.group.position).setY(0).normalize();goal='heal'}else if(this.hp<=this.maxHp*.3){direction.negate();goal='retreat'}else if(distance>11)goal='approach';else if(distance<7){direction.negate();goal='retreat'}else{direction.set(-forward.z,0,forward.x).multiplyScalar(this.strafeDirection)}if(!visible&&goal==='fight'){direction.copy(forward);goal='approach'}
+    const forward=toPlayer.setY(0).normalize(),direction=forward.clone();let goal='fight';
+    if(this.hp<=this.maxHp*.3){direction.negate();goal='retreat'}else if(distance>11)goal='approach';else if(distance<7){direction.negate();goal='retreat'}else{direction.set(-forward.z,0,forward.x).multiplyScalar(this.strafeDirection)}if(!visible&&goal==='fight'){direction.copy(forward);goal='approach'}
     this.moveDirection=direction;this.moveSpeed=this.config.enemySpeed*(goal==='retreat'?1.2:1);
-    if(Math.random()<this.config.jump*.16&&this.group.position.y===0)this.group.position.y=.5;if(Math.random()<this.config.dash*.16)this.safeMove(direction,1.1);
-    if(visible&&distance<FIRE_RANGE&&this.shotTimer<=0){if(this.burstShots>=3){this.shotTimer=1.3;this.burstShots=0;this.strafeDirection*=-1;return}this.shotTimer=this.config.reaction;this.burstShots++;this.muzzleFlash();if(this.seenTime>this.config.reaction&&Math.random()<this.config.accuracy)onShot(this.config.attack);else onShot(0)}}
+    if(Math.random()<this.config.jump*.16&&this.group.position.y===0)this.group.position.y=.5;
+    if(visible&&distance<FIRE_RANGE&&this.shotTimer<=0&&this.seenTime>this.config.reaction){if(this.burstShots>=3){this.shotTimer=.85;this.burstShots=0;this.strafeDirection*=-1;return}this.shotTimer=.16+this.config.reaction*.18;this.burstShots++;this.muzzleFlash();this.fire(player)}}
   flash(hit){this.highlight.uniforms.glowColor.value.set(hit?0xffffff:0xff5545);this.highlight.uniforms.rimStrength.value=hit?1.7:.95;this.highlight.uniforms.fill.value=hit?.35:.07}
   damage(amount){if(!this.alive)return;this.hp-=amount;const token=++this.flashToken;this.tint(0x88ffff);this.flash(true);this.setFace('hurt');setTimeout(()=>{if(this.alive&&token===this.flashToken){this.untint();this.flash(false);this.setFace('normal')}},160);if(this.hp<=0)this.die()}
   // 撃破。白フラッシュは一瞬だけにして、飛び散るパーツはアバター本来の色で見せる。
-  die(){if(!this.alive)return;this.alive=false;this.tint(0xffffff);this.flash(true);this.setFace('ko');this.exploding=.5;setTimeout(()=>{this.untint();this.flash(false)},110);
+  die(){if(!this.alive)return;this.alive=false;this.clearShots();this.tint(0xffffff);this.flash(true);this.setFace('ko');this.exploding=.5;setTimeout(()=>{this.untint();this.flash(false)},110);
     this.parts.forEach((part,index)=>{part.velocity.set(Math.sin(index*2.4)*7,6+Math.random()*3,Math.cos(index*2.4)*7);part.spin=4+index*.9});
     setTimeout(()=>{this.group.visible=false;this.effects.burst(this.group.position.clone().add(new THREE.Vector3(0,CENTER_Y,0)),0xff8a31,18,.22,.9)},380);
-    this.audio.play('kill');this.audio.play('oof');this.onDeath?.();setTimeout(()=>{if(!this.gameEnded)this.respawn(this.lastPlayerPosition||new THREE.Vector3())},2000)}
-  respawn(playerPosition){const candidates=[[-16,-15],[16,-15],[-16,15],[16,15],[0,-16]];const safe=candidates.map(([x,z])=>new THREE.Vector3(x,0,z)).sort((a,b)=>b.distanceToSquared(playerPosition)-a.distanceToSquared(playerPosition))[0];this.group.position.copy(safe);this.group.rotation.set(0,0,0);this.group.visible=true;
+    this.audio.play('kill');this.audio.play('oof');this.onDeath?.()}
+  respawn(spawnPoint=new THREE.Vector3(0,0,-16)){const safe=spawnPoint.clone();this.clearShots();this.group.position.copy(safe);this.group.rotation.set(0,0,0);this.group.visible=true;
     this.parts.forEach(part=>{part.mesh.position.copy(part.rest);part.mesh.rotation.set(0,0,0)});this.gun.rotation.x=-AIM_ARM;this.exploding=0;
     this.upper.position.y=0;this.legs.forEach(leg=>leg.rotation.set(0,0,0));this.arms[0].rotation.set(0,0,0);this.arms[1].rotation.set(AIM_ARM,0,0);
     this.untint();this.flash(false);this.setFace('normal');this.flashToken++;
