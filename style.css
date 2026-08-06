@@ -22,7 +22,10 @@ button { border: 0; color: #fff; font-weight: 900; cursor: pointer; }
 button:focus-visible { outline: 3px solid #75efff; outline-offset: 3px; }
 .hidden { display: none !important; }
 
-.panel { position: fixed; z-index: 30; inset: 0; display: grid; place-items: center; padding: calc(22px + env(safe-area-inset-top)) 22px calc(22px + env(safe-area-inset-bottom)); background: radial-gradient(circle at 50% 30%, #284378f2, #090f22fa 72%); overflow-y: auto; overflow-x: hidden; }
+.panel { position: fixed; z-index: 30; inset: 0; display: flex; align-items: flex-start; justify-content: center; padding: calc(22px + env(safe-area-inset-top)) 22px calc(22px + env(safe-area-inset-bottom)); background: radial-gradient(circle at 50% 30%, #284378f2, #090f22fa 72%); overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+.panel > * { flex: 0 0 auto; margin-block: auto; }
+.panel * { touch-action: pan-y; }
+.panel input[type="range"] { touch-action: pan-y; }
 .menu-card, .wide-card, .result-card { width: min(720px, 100%); border: 1px solid #ffffff2e; border-radius: 28px; padding: clamp(24px, 5vw, 52px); text-align: center; background: linear-gradient(145deg, #17284ae8, #101a34f2); box-shadow: 0 30px 90px #0008, inset 0 1px #fff2; backdrop-filter: blur(18px); }
 .wide-card { width: min(980px, 100%); }
 .eyebrow { margin: 0 0 7px; color: #75eaff; font-size: 12px; font-weight: 1000; letter-spacing: .18em; }
