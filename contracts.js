@@ -22,6 +22,19 @@ export class ContractTracker {
 
   get keys() { return this.data.keys; }
 
+  spend(amount) {
+    if (amount < 0 || this.data.keys < amount) return false;
+    this.data.keys -= amount;
+    this.save();
+    return true;
+  }
+
+  earn(amount = 1) {
+    if (amount <= 0) return;
+    this.data.keys += amount;
+    this.save();
+  }
+
   record(stat, amount = 1) {
     this.data.stats[stat] = (this.data.stats[stat] || 0) + amount;
     const completed = [];

@@ -18,6 +18,9 @@ export class Player {
     this.slideTimer = 0;
     this.slideDirection = new THREE.Vector3();
     this.wasCrouch = false;
+    this.wasJump = false;
+    this.remainingAirJumps = 0;
+    this.modifiers = { airJumps: 0, lowHealthSpeed: 1 };
     this.onSlide = null;
     camera.position.copy(this.position);
   }
@@ -25,6 +28,10 @@ export class Player {
   configure(maxHp = 100) {
     this.maxHp = maxHp;
     this.hp = maxHp;
+  }
+
+  setModifiers(modifiers = {}) {
+    this.modifiers = { airJumps: modifiers.airJumps || 0, lowHealthSpeed: modifiers.lowHealthSpeed || 1 };
   }
 
   respawn(spawn = new THREE.Vector3(0, STANDING_EYE, 16), yaw = 0) {
@@ -38,6 +45,8 @@ export class Player {
     this.crouched = this.sliding = this.sprinting = false;
     this.slideTimer = 0;
     this.wasCrouch = false;
+    this.wasJump = false;
+    this.remainingAirJumps = this.modifiers.airJumps;
     this.camera.rotation.set(0, yaw, 0, 'YXZ');
     this.camera.position.copy(this.position);
   }
@@ -73,17 +82,22 @@ export class Player {
       this.crouched = !!input.crouch;
       this.sprinting = !!input.sprint && !this.crouched && wish.lengthSq() > .1 && !input.aim;
       let speed = this.crouched ? 4.4 : this.sprinting ? 9.1 : 7;
+      if (this.hp / this.maxHp < .3) speed *= this.modifiers.lowHealthSpeed;
       if (input.aim) speed *= .78;
       this.velocity.x = wish.x * speed;
       this.velocity.z = wish.z * speed;
     }
 
-    if (input.jump && this.grounded && !this.sliding) {
+    const jumpPressed = input.jump && !this.wasJump;
+    this.wasJump = input.jump;
+    if (jumpPressed && (this.grounded || this.remainingAirJumps > 0) && !this.sliding) {
+      const airJump = !this.grounded;
+      if (airJump) this.remainingAirJumps--;
       this.velocity.y = 8.35;
       this.grounded = false;
       this.crouched = false;
       this.audio.play('jump');
-      this.effects.burst(this.position.clone().setY(.12), 0xd9d0b7, 4, .14, .28);
+      this.effects.burst(this.position.clone().setY(Math.max(.12, this.position.y - 1)), airJump ? 0x76eaff : 0xd9d0b7, 4, .14, .28);
     }
 
     this.velocity.y -= 22 * dt;
@@ -101,6 +115,7 @@ export class Player {
         this.position.y = targetEye;
         this.velocity.y = 0;
         this.grounded = true;
+        this.remainingAirJumps = this.modifiers.airJumps;
       } else {
         this.grounded = false;
       }
@@ -123,7 +138,8 @@ export class Player {
   }
 
   takeDamage(amount) {
+    const before = this.hp;
     this.hp = Math.max(0, this.hp - amount);
-    return amount;
+    return before - this.hp;
   }
 }

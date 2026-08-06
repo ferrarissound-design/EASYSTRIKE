@@ -4,6 +4,27 @@ export const ARENA_SIZE = 42;
 export const PLAYER_SPAWN = new THREE.Vector3(0, 1.7, 16);
 export const RIVAL_SPAWN = new THREE.Vector3(0, 0, -16);
 
+export const ARENA_MAPS = {
+  crossline: { id: 'crossline', name: 'CROSSLINE', short: 'BALANCED', detail: 'Three readable routes with flexible cover' },
+  pocket: { id: 'pocket', name: 'POCKET', short: 'CLOSE', detail: 'Dense cover and fast close-range fights' },
+  longshot: { id: 'longshot', name: 'LONGSHOT', short: 'RANGE', detail: 'Long sightlines with sparse safe islands' },
+};
+
+export function loadArenaMap() {
+  const value = localStorage.getItem('firstBlastArenaMap');
+  return ARENA_MAPS[value] ? value : 'crossline';
+}
+
+export function destroyArena(scene, root) {
+  if (!root) return;
+  scene.remove(root);
+  root.traverse(object => {
+    object.geometry?.dispose?.();
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    materials.filter(Boolean).forEach(entry => { entry.map?.dispose?.(); entry.dispose?.(); });
+  });
+}
+
 const WALL_HEIGHT = 8;
 const COLOR = {
   floor: 0xf2f4fa,
@@ -38,8 +59,12 @@ function studPattern() {
   return studSource;
 }
 
-export function createArena(scene, colliders) {
-  const obstacles = [];
+export function createArena(scene, colliders, mapKey = 'crossline', sharedObstacles = []) {
+  const root = new THREE.Group();
+  root.name = `arena-${mapKey}`;
+  const obstacles = sharedObstacles;
+  colliders.length = 0;
+  obstacles.length = 0;
   const material = color => new THREE.MeshLambertMaterial({ color, flatShading: true });
   const edgeMaterial = new THREE.LineBasicMaterial({ color: COLOR.ink, transparent: true, opacity: .32 });
 
@@ -48,7 +73,7 @@ export function createArena(scene, colliders) {
     mesh.position.set(x, y, z);
     mesh.rotation.y = rotationY;
     mesh.castShadow = mesh.receiveShadow = true;
-    scene.add(mesh);
+    root.add(mesh);
     if (solid) {
       colliders.push(new THREE.Box3().setFromObject(mesh));
       obstacles.push(mesh);
@@ -85,7 +110,7 @@ export function createArena(scene, colliders) {
   grid.position.y = .025;
   grid.material.transparent = true;
   grid.material.opacity = .7;
-  scene.add(grid);
+  root.add(grid);
 
   // Team-colored spawn halves make orientation immediate without changing collision.
   [[0, -10, COLOR.red], [0, 10, COLOR.blue]].forEach(([x, z, color]) => {
@@ -103,21 +128,33 @@ export function createArena(scene, colliders) {
     wall.add(trim);
   });
 
-  // Identical spawn cover and staging corners.
+  // Every layout is rotationally symmetric so neither spawn gets a geometry advantage.
   mirroredBlock(0, 13, 6, 1.2, 1.2, COLOR.blockDark);
-  mirroredBlock(-7.5, 14.5, 4, 2.6, 3, COLOR.blue);
-  mirroredBlock(7.5, 14.5, 4, 2.6, 3, COLOR.block);
-
-  // Three readable routes: open middle, two protected flanks.
-  mirroredBlock(0, 6.5, 4.2, 1.45, 2.2, COLOR.block);
-  mirroredBlock(-10, 7, 2.6, 3, 5.5, COLOR.blockDark);
-  mirroredBlock(10, 7, 2.6, 3, 5.5, COLOR.block);
-  mirroredBlock(-14.5, 1.5, 5, 2, 1.2, COLOR.block);
-  mirroredBlock(14.5, 1.5, 5, 2, 1.2, COLOR.blockDark);
-
-  // A low, rotated center duel piece preserves sightlines while breaking direct rushes.
-  block(0, 0, 5.2, 1.35, 5.2, COLOR.white, Math.PI / 4);
-  mirroredBlock(-6.5, 0, 2.4, 2.4, 2.4, COLOR.blockDark);
+  if (mapKey === 'pocket') {
+    mirroredBlock(-6.5, 12.5, 4.5, 2.8, 4.5, COLOR.blue);
+    mirroredBlock(6.5, 9, 3.2, 2.5, 5, COLOR.block);
+    mirroredBlock(-11, 5, 5, 2.7, 2.2, COLOR.blockDark, Math.PI / 8);
+    mirroredBlock(11, 2.5, 4, 2.2, 2.4, COLOR.block, -Math.PI / 8);
+    block(0, 0, 7, 2.3, 3, COLOR.white, Math.PI / 4);
+    mirroredBlock(-4.5, 2.5, 2.3, 2.8, 2.3, COLOR.blockDark);
+  } else if (mapKey === 'longshot') {
+    mirroredBlock(-13.5, 14, 3.5, 2.7, 3, COLOR.blue);
+    mirroredBlock(13.5, 10, 3, 2, 2.5, COLOR.block);
+    mirroredBlock(-14, 1.5, 3.5, 3.2, 2, COLOR.blockDark);
+    mirroredBlock(14, 1.5, 3.5, 1.3, 2, COLOR.block);
+    mirroredBlock(-5.5, 6, 2.2, 1.4, 2.2, COLOR.block);
+    block(0, 0, 2.6, 1.15, 2.6, COLOR.white, Math.PI / 4);
+  } else {
+    mirroredBlock(-7.5, 14.5, 4, 2.6, 3, COLOR.blue);
+    mirroredBlock(7.5, 14.5, 4, 2.6, 3, COLOR.block);
+    mirroredBlock(0, 6.5, 4.2, 1.45, 2.2, COLOR.block);
+    mirroredBlock(-10, 7, 2.6, 3, 5.5, COLOR.blockDark);
+    mirroredBlock(10, 7, 2.6, 3, 5.5, COLOR.block);
+    mirroredBlock(-14.5, 1.5, 5, 2, 1.2, COLOR.block);
+    mirroredBlock(14.5, 1.5, 5, 2, 1.2, COLOR.blockDark);
+    block(0, 0, 5.2, 1.35, 5.2, COLOR.white, Math.PI / 4);
+    mirroredBlock(-6.5, 0, 2.4, 2.4, 2.4, COLOR.blockDark);
+  }
 
   const sky = new THREE.SphereGeometry(70, 18, 12);
   const skyColors = [];
@@ -130,19 +167,20 @@ export function createArena(scene, colliders) {
     skyColors.push(color.r, color.g, color.b);
   }
   sky.setAttribute('color', new THREE.Float32BufferAttribute(skyColors, 3));
-  scene.add(new THREE.Mesh(sky, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false })));
+  root.add(new THREE.Mesh(sky, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false })));
 
-  scene.add(new THREE.HemisphereLight(0xe6f2ff, 0x7b86a7, 1.75));
+  root.add(new THREE.HemisphereLight(0xe6f2ff, 0x7b86a7, 1.75));
   const sun = new THREE.DirectionalLight(0xfff7ef, 1.65);
   sun.position.set(8, 18, 10);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
-  scene.add(sun);
+  root.add(sun);
   [[-13, 7, -10, 0x4f91ff], [13, 7, 10, 0xff5d91]].forEach(([x, y, z, color]) => {
     const light = new THREE.PointLight(color, 220, 26, 2);
     light.position.set(x, y, z);
-    scene.add(light);
+    root.add(light);
   });
 
-  return obstacles;
+  scene.add(root);
+  return { root, obstacles, map: ARENA_MAPS[mapKey] || ARENA_MAPS.crossline };
 }
