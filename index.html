@@ -1,8 +1,133 @@
-<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>FIRST BLAST</title><link rel="stylesheet" href="style.css"></head>
-<body><div id="game"></div>
-<section id="start" class="panel"><h1>FIRST <span>BLAST</span></h1><p>カラフルなアリーナへ飛び込もう！</p><div class="choices" id="difficulty"><button data-value="easy" class="selected">かんたん</button><button data-value="normal">ふつう</button><button data-value="challenge">チャレンジ</button></div><label class="relax"><input id="relax" type="checkbox"> リラックスモード</label><button id="startButton" class="primary">BLAST OFF</button><button id="settingsButton" class="secondary">⚙ 設定</button><small>WASD 移動 / マウス 視点 / クリック 射撃 / Space ジャンプ / Shift ダッシュ / 1・2・3 武器</small></section>
-<section id="settings" class="panel hidden"><h2>設定</h2><div class="settings-grid"><label>効果音 <input id="setting-sfx" type="range" min="0" max="100"></label><label>BGM <input id="setting-bgm" type="range" min="0" max="100"></label><label>視点感度 <input id="setting-sensitivity" type="range" min="20" max="100"></label><label>エイムアシスト <select id="setting-aimAssist"><option value="off">オフ</option><option value="weak">弱い</option><option value="normal">普通</option><option value="strong">強い</option></select></label><label>照準サイズ <input id="setting-crosshairSize" type="range" min="70" max="150"></label><label>照準色 <input id="setting-crosshairColor" type="color"></label><label>ボタンサイズ <input id="setting-buttonSize" type="range" min="80" max="130"></label><label>画質 <select id="setting-quality"><option value="low">低</option><option value="medium">中</option><option value="high">高</option></select></label><label><input id="setting-cameraShake" type="checkbox"> カメラ振動</label><label><input id="setting-leftHanded" type="checkbox"> 左利きレイアウト</label></div><button id="closeSettings" class="primary">完了</button></section>
-<div id="hud" class="hidden"><header><div class="brand">FIRST <b>BLAST</b></div><div class="kills">撃破 <b id="kills">0</b> / 5</div><div class="deaths">敗北 <b id="deaths">0</b> / 5</div></header><div id="crosshair"><i></i><i></i></div><div class="health"><label>HP <b id="hpText">200</b></label><div><i id="hpBar"></i></div><small id="buffs"></small></div><div class="ammo"><span id="weaponName">PULSE BLASTER</span><b id="ammo">20</b><small id="reloadText"></small></div><div id="weaponSlots"><button data-weapon="0" class="selected">1 PULSE</button><button data-weapon="1">2 SPARK</button><button data-weapon="2">3 BUBBLE</button></div><div id="damageNumbers"></div><div id="nametag" class="hidden"><b>RIVAL</b><i><s id="nametagBar"></s></i></div><ul id="killfeed"></ul><div id="downed" class="hidden"><b>やられた！</b><small>すぐ復活するよ</small></div></div>
-<div id="mobile" class="hidden"><div id="stick"><i></i></div><div id="look"></div><button id="fire">射撃</button><button id="jump">JUMP</button><button id="dash">DASH</button></div>
-<section id="message" class="panel hidden"><h1 id="result">Victory!</h1><p id="resultDetail"></p><button id="again" class="primary">もう一度遊ぶ</button></section>
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.module.js"}}</script><script type="module" src="main.js"></script></body></html>
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <title>FIRST BLAST</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="game"></div>
+
+  <section id="start" class="panel">
+    <div class="menu-card">
+      <p class="eyebrow">FAST 1V1 ARENA FPS</p>
+      <h1>FIRST <span>BLAST</span></h1>
+      <p class="lead">一命を賭けたラウンドを、先に5本取れ。</p>
+      <div class="choices" id="difficulty" aria-label="CPU難易度">
+        <button data-value="easy" class="selected">ROOKIE</button>
+        <button data-value="normal">RIVAL</button>
+        <button data-value="challenge">ACE</button>
+      </div>
+      <div class="mode-actions">
+        <button id="duelButton" class="primary">DUELを開始</button>
+        <button id="rangeButton" class="range-button">射撃場</button>
+      </div>
+      <div class="menu-actions">
+        <button id="loadoutButton">ロードアウト</button>
+        <button id="contractsButton">契約 <b id="menuKeys">0 KEY</b></button>
+        <button id="settingsButton">設定</button>
+      </div>
+      <small>WASD 移動 / Shift スプリント / C スライド / 右クリック ADS / Q 近接 / E Utility</small>
+    </div>
+  </section>
+
+  <section id="loadout" class="panel hidden">
+    <div class="wide-card">
+      <p class="eyebrow">EQUIPMENT</p>
+      <h2>ロードアウト</h2>
+      <p class="panel-copy">各スロットから1つ選択。選択内容は自動保存されます。</p>
+      <div id="loadoutGrid" class="loadout-grid"></div>
+      <button class="primary close-panel" data-close="loadout">完了</button>
+    </div>
+  </section>
+
+  <section id="contracts" class="panel hidden">
+    <div class="wide-card">
+      <p class="eyebrow">PROGRESSION</p>
+      <h2>契約</h2>
+      <div class="key-total"><b id="contractKeys">0</b> KEYS</div>
+      <div id="contractList" class="contract-list"></div>
+      <button class="primary close-panel" data-close="contracts">戻る</button>
+    </div>
+  </section>
+
+  <section id="settings" class="panel hidden">
+    <div class="wide-card">
+      <p class="eyebrow">OPTIONS</p>
+      <h2>設定</h2>
+      <div class="settings-grid">
+        <label>効果音 <input id="setting-sfx" type="range" min="0" max="100"></label>
+        <label>BGM <input id="setting-bgm" type="range" min="0" max="100"></label>
+        <label>視点感度 <input id="setting-sensitivity" type="range" min="20" max="100"></label>
+        <label>エイムアシスト
+          <select id="setting-aimAssist"><option value="off">オフ</option><option value="weak">弱い</option><option value="normal">普通</option><option value="strong">強い</option></select>
+        </label>
+        <label>照準サイズ <input id="setting-crosshairSize" type="range" min="70" max="150"></label>
+        <label>照準色 <input id="setting-crosshairColor" type="color"></label>
+        <label>ボタンサイズ <input id="setting-buttonSize" type="range" min="80" max="130"></label>
+        <label>画質 <select id="setting-quality"><option value="low">低</option><option value="medium">中</option><option value="high">高</option></select></label>
+        <label><input id="setting-cameraShake" type="checkbox"> カメラ振動</label>
+        <label><input id="setting-leftHanded" type="checkbox"> 左利きレイアウト</label>
+      </div>
+      <button class="primary close-panel" data-close="settings">完了</button>
+    </div>
+  </section>
+
+  <div id="hud" class="hidden">
+    <header class="match-header">
+      <div class="brand">FIRST <b>BLAST</b></div>
+      <div class="scoreboard">
+        <div class="score-side blue"><span>YOU</span><b id="playerRounds">0</b><i id="playerRoundDots"></i></div>
+        <div class="round-label"><span id="modeLabel">DUEL</span><small id="roundNumber">ROUND 1</small></div>
+        <div class="score-side red"><b id="rivalRounds">0</b><span>RIVAL</span><i id="rivalRoundDots"></i></div>
+      </div>
+      <button id="menuButton" class="hud-menu">MENU</button>
+    </header>
+
+    <div id="roundBanner" class="round-banner hidden"><b></b><small></small></div>
+    <div id="crosshair"><i></i><i></i><em></em></div>
+    <div id="hitDirection" class="hit-direction hidden">▲</div>
+
+    <div class="health">
+      <label>HP <b id="hpText">100</b></label>
+      <div><i id="hpBar"></i></div>
+      <small id="buffs"></small>
+    </div>
+    <div class="ammo">
+      <span id="weaponName">PULSE RIFLE</span>
+      <b id="ammo">24</b>
+      <small id="reloadText"></small>
+    </div>
+    <div id="weaponSlots" class="weapon-slots"></div>
+    <div id="damageNumbers"></div>
+    <div id="nametag" class="hidden"><b>RIVAL</b><i><s id="nametagBar"></s></i></div>
+    <ul id="killfeed"></ul>
+  </div>
+
+  <div id="mobile" class="hidden">
+    <div id="stick"><i></i></div>
+    <div id="look"></div>
+    <button id="fire">FIRE</button>
+    <button id="jump">JUMP</button>
+    <button id="crouch">SLIDE</button>
+    <button id="aim">AIM</button>
+    <button id="quickMelee">Q</button>
+    <button id="quickUtility">E</button>
+  </div>
+
+  <section id="message" class="panel hidden">
+    <div class="result-card">
+      <p class="eyebrow" id="resultEyebrow">MATCH COMPLETE</p>
+      <h1 id="result">VICTORY</h1>
+      <p id="resultDetail"></p>
+      <div id="matchStats" class="match-stats"></div>
+      <button id="again" class="primary">もう一度</button>
+      <button id="resultMenu" class="range-button">メニュー</button>
+    </div>
+  </section>
+
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.module.js"}}</script>
+  <script type="module" src="main.js"></script>
+</body>
+</html>
