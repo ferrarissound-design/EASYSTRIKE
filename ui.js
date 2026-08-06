@@ -7,7 +7,9 @@ export class UI {
     this.hp = byId('hpBar');
     this.hpText = byId('hpText');
     this.ammo = byId('ammo');
+    this.ammoMax = byId('ammoMax');
     this.reload = byId('reloadText');
+    this.roundClock = byId('roundClock');
     this.weaponName = byId('weaponName');
     this.crosshair = byId('crosshair');
     this.damageLayer = byId('damageNumbers');
@@ -26,6 +28,23 @@ export class UI {
     this.hitTimer = 0;
     this.flashTimer = 0;
     this.calloutTimer = 0;
+    this.clockSeconds = 0;
+    this.clockRunning = false;
+  }
+
+  // 経過時間は壁時計ではなくdtの積算で持つ。ギア選択などで試合が止まっている間は進めない。
+  startRoundClock() {
+    this.clockSeconds = 0;
+    this.clockRunning = true;
+    this.writeRoundClock();
+  }
+
+  stopRoundClock() { this.clockRunning = false; }
+
+  writeRoundClock() {
+    const total = Math.floor(this.clockSeconds);
+    const seconds = `${total % 60}`.padStart(2, '0');
+    this.write(this.roundClock, 'roundClock', `${Math.floor(total / 60)}:${seconds}`);
   }
 
   write(element, key, value) {
@@ -87,7 +106,13 @@ export class UI {
 
   hideBanner() { this.banner.classList.add('hidden'); }
 
-  update(player, weapon, enemy) {
+  update(player, weapon, enemy, dt = 0) {
+    if (this.clockRunning && dt) {
+      // タブが裏に回るとrAFが止まり、復帰時のdtが数分になる。試合が動いていない
+      // 分まで数えないよう、1フレームの加算は .5 秒までにする。
+      this.clockSeconds += Math.min(dt, .5);
+      this.writeRoundClock();
+    }
     const ratio = Math.max(0, player.hp / player.maxHp * 100);
     if (this.previous.hpRatio !== ratio) {
       this.previous.hpRatio = ratio;
@@ -96,6 +121,9 @@ export class UI {
     }
     this.write(this.hpText, 'hpText', Math.ceil(player.hp));
     this.write(this.ammo, 'ammo', weapon.currentAmmo);
+    // 近接など弾数が無限の装備では「/最大」を出さない。
+    const capacity = weapon.definition.ammo;
+    this.write(this.ammoMax, 'ammoMax', Number.isFinite(capacity) ? `/${capacity}` : '');
     this.write(this.reload, 'reload', weapon.reloading ? 'リロード中…' : weapon.cooldownLabel);
     this.write(this.weaponName, 'weaponName', weapon.definition.name);
     this.write(this.buffs, 'buffs', player.sliding ? 'スライド中' : player.crouched ? 'しゃがみ中' : player.sprinting ? 'ダッシュ中' : '');
