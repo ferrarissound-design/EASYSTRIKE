@@ -13,7 +13,8 @@ export class JumpController {
     this.wasHeld = false;
   }
 
-  update(dt, { held, grounded, airJumps }) {
+  update(dt, { held, grounded }) {
+    // 押した瞬間だけを立ち上がりとして扱う。指を離してももう一度発火しない。
     const pressed = held && !this.wasHeld;
     this.wasHeld = held;
     this.coyoteRemaining = grounded
@@ -24,20 +25,16 @@ export class JumpController {
     if (pressed || (held && autoJump)) this.bufferRemaining = this.tuning.JumpBufferTime;
     else this.bufferRemaining = Math.max(0, this.bufferRemaining - dt);
 
-    const groundJump = this.coyoteRemaining > 0;
-    const airJump = !groundJump && pressed && airJumps > 0;
-    if (this.bufferRemaining <= 0 || (!groundJump && !airJump)) {
-      return { jump: false, airJump: false };
-    }
+    if (this.bufferRemaining <= 0 || this.coyoteRemaining <= 0) return { jump: false };
 
     this.bufferRemaining = 0;
     this.coyoteRemaining = 0;
-    return { jump: true, airJump };
+    return { jump: true };
   }
 
-  debug(grounded, airJumps) {
+  debug(grounded) {
     return {
-      canJump: grounded || this.coyoteRemaining > 0 || airJumps > 0,
+      canJump: grounded || this.coyoteRemaining > 0,
       bufferRemaining: this.bufferRemaining,
       coyoteRemaining: this.coyoteRemaining,
     };

@@ -56,6 +56,11 @@ export class Controls {
   }
 
   bindTouchControls() {
+    // ポインタキャプチャは環境によって失敗する。取れなくても操作は続行させる。
+    const capture = (element, pointerId) => {
+      try { element.setPointerCapture(pointerId); } catch { /* キャプチャ無しで続行 */ }
+    };
+
     const stick = document.getElementById('stick');
     const knob = stick.querySelector('i');
     let stickId = null;
@@ -63,7 +68,7 @@ export class Controls {
       event.preventDefault();
       this.lastInput = 'touch';
       stickId = event.pointerId;
-      stick.setPointerCapture(stickId);
+      capture(stick, stickId);
     };
     stick.onpointermove = event => {
       if (event.pointerId !== stickId) return;
@@ -92,7 +97,7 @@ export class Controls {
       lookId = event.pointerId;
       lastX = event.clientX;
       lastY = event.clientY;
-      look.setPointerCapture(lookId);
+      capture(look, lookId);
     };
     look.onpointermove = event => {
       if (event.pointerId !== lookId) return;
@@ -115,17 +120,24 @@ export class Controls {
         event.preventDefault();
         event.stopPropagation();
         this.lastInput = 'touch';
-        button.setPointerCapture(event.pointerId);
+        // 入力を先に確定させる。setPointerCapture はiOSで NotFoundError を投げることが
+        // あり、先に呼ぶとその1タップが丸ごと無視されてしまう。
         if (property === 'reload') this.reload?.();
         else this[property] = true;
         if (property === 'fire') this.firePressed = true;
         if (property === 'jump') this.jumpPressed = true;
         if (property === 'crouch') this.crouchPressed = true;
+        capture(button, event.pointerId);
       };
-      button.onpointerup = button.onpointercancel = event => {
-        event.stopPropagation();
+      // 離した瞬間は押下フラグを立てない。ジャンプは押し始めの1回だけ発火する。
+      const release = event => {
+        event?.stopPropagation();
         if (!['reload', 'quickMelee', 'quickUtility'].includes(property)) this[property] = false;
       };
+      button.onpointerup = button.onpointercancel = release;
+      // iOSでpointerupが届かずキャプチャだけ外れることがある。押しっぱなし扱いで
+      // 固まらないよう、キャプチャ喪失も離した扱いにする。
+      button.onlostpointercapture = release;
     });
   }
 

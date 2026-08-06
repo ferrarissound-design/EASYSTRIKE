@@ -1,6 +1,5 @@
 export const GEARS = [
   { id: 'quick-hands', name: '高速装填', icon: '>>', detail: 'リロード速度が35%アップ', modifiers: { reloadSpeed: 1.54 } },
-  { id: 'air-step', name: '空中ステップ', icon: 'UP', detail: '空中ジャンプを1回追加', modifiers: { airJumps: 1 } },
   { id: 'hunter', name: 'ハンター', icon: '◎', detail: '命中したライバルを2.5秒間表示', modifiers: { reveal: true } },
   { id: 'heavy-round', name: '強装弾', icon: '◆', detail: 'ダメージ+18%、連射速度-12%', modifiers: { damage: 1.18, fireRate: .88 } },
   { id: 'second-wind', name: 'セカンドウィンド', icon: '+', detail: 'HP30%未満で移動速度+24%', modifiers: { lowHealthSpeed: 1.24 } },
@@ -35,7 +34,6 @@ export class GearDraft {
       reloadSpeed: 1,
       fireRate: 1,
       damage: 1,
-      airJumps: 0,
       lowHealthSpeed: 1,
       reveal: false,
       gravityShot: false,

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { JumpController } from './jumpController.js';
 import { MOBILE_TUNING } from './mobileTuning.js';
+const JUMP = MOBILE_TUNING.playerJump;
 import { bodyBlocked, ceilingAbove, supportBelow, STEP_HEIGHT } from './collision.js';
 
 // 足元からの目線の高さ。position は目線の位置、feetY が足元の高さで、
@@ -30,9 +31,10 @@ export class Player {
     this.slideTimer = 0;
     this.slideDirection = new THREE.Vector3();
     this.wasCrouch = false;
-    this.remainingAirJumps = 0;
+    this.slideGrace = 0;
+    this.airSpeed = 0;
     this.jumpController = new JumpController(settings);
-    this.modifiers = { airJumps: 0, lowHealthSpeed: 1 };
+    this.modifiers = { lowHealthSpeed: 1 };
     this.onSlide = null;
     camera.position.copy(this.position);
   }
@@ -43,7 +45,7 @@ export class Player {
   }
 
   setModifiers(modifiers = {}) {
-    this.modifiers = { airJumps: modifiers.airJumps || 0, lowHealthSpeed: modifiers.lowHealthSpeed || 1 };
+    this.modifiers = { lowHealthSpeed: modifiers.lowHealthSpeed || 1 };
   }
 
   get bodyHeight() { return this.sliding || this.crouched ? CROUCH_HEIGHT : STANDING_HEIGHT; }
@@ -62,8 +64,9 @@ export class Player {
     this.crouched = this.sliding = this.sprinting = false;
     this.slideTimer = 0;
     this.wasCrouch = false;
+    this.slideGrace = 0;
+    this.airSpeed = 0;
     this.jumpController.reset();
-    this.remainingAirJumps = this.modifiers.airJumps;
     this.camera.rotation.set(0, yaw, 0, 'YXZ');
     this.camera.position.copy(this.position);
   }
@@ -91,6 +94,9 @@ export class Player {
       this.effects.burst(this.position.clone().setY(this.feetY + .12), 0xb7d8ff, 5, .1, .28);
     }
 
+    // スライド中と直後の猶予。この間のジャンプはスライドの勢いを引き継ぐ。
+    this.slideGrace = this.sliding ? JUMP.SlideGrace : Math.max(0, this.slideGrace - dt);
+
     if (this.sliding) {
       this.slideTimer -= dt;
       const slideSpeed = 7.8 + Math.max(0, this.slideTimer) * 6.5;
@@ -109,28 +115,52 @@ export class Player {
         this.velocity.x = targetX;
         this.velocity.z = targetZ;
       } else {
+        // 空中制御は据え置き。向きは自由に変えられる。
         const control = Math.min(1, MOBILE_TUNING.movement.AirControl * dt);
         this.velocity.x += (targetX - this.velocity.x) * control;
         this.velocity.z += (targetZ - this.velocity.z) * control;
+        // スライドジャンプ中だけ、操作で向きを変えても速度の大きさを保つ。
+        if (this.airSpeed > 0) {
+          this.airSpeed = Math.max(0, this.airSpeed - JUMP.SlideDecay * dt);
+          const speed = Math.hypot(this.velocity.x, this.velocity.z);
+          if (speed > .01 && speed < this.airSpeed) {
+            const scale = this.airSpeed / speed;
+            this.velocity.x *= scale;
+            this.velocity.z *= scale;
+          }
+        }
       }
     }
 
-    const jump = this.jumpController.update(dt, {
-      held: input.jump,
-      grounded: this.grounded,
-      airJumps: this.remainingAirJumps,
-    });
+    const jump = this.jumpController.update(dt, { held: input.jump, grounded: this.grounded });
     if (jump.jump) {
-      if (jump.airJump) this.remainingAirJumps--;
-      this.velocity.y = MOBILE_TUNING.movement.JumpForce;
+      const slideJump = this.sliding || this.slideGrace > 0;
+      this.velocity.y = JUMP.Force;
       this.grounded = false;
       this.sliding = false;
+      this.slideGrace = 0;
       this.crouched = false;
+      // スライドジャンプは水平速度をそのまま残し、少しだけ前へ伸ばす。
+      // 上限があるので、連打しても際限なく加速することはない。
+      const speed = slideJump ? Math.hypot(this.velocity.x, this.velocity.z) : 0;
+      if (speed > .01) {
+        this.airSpeed = Math.min(JUMP.SlideSpeedCap, speed * JUMP.SlideBoost);
+        const scale = this.airSpeed / speed;
+        this.velocity.x *= scale;
+        this.velocity.z *= scale;
+      } else {
+        this.airSpeed = 0;
+      }
       this.audio.play('jump');
-      this.effects.burst(this.position.clone().setY(this.feetY + .12), jump.airJump ? 0x76eaff : 0xd9d0b7, 4, .14, .28);
+      this.effects.burst(this.position.clone().setY(this.feetY + .12), slideJump ? 0xb7d8ff : 0xd9d0b7, 4, .14, .28);
     }
 
-    this.velocity.y -= MOBILE_TUNING.movement.Gravity * dt;
+    // 上昇・頂点・落下で重力を切り替える。高さを出しつつ滞空は短く保つ。
+    const rising = this.velocity.y > 0;
+    const gravity = !rising ? JUMP.FallGravity
+      : this.velocity.y < JUMP.ApexSpeed ? JUMP.ApexGravity
+      : JUMP.RiseGravity;
+    this.velocity.y -= gravity * dt;
     this.moveAxis('x', this.velocity.x * dt);
     this.moveAxis('z', this.velocity.z * dt);
     this.resolveVertical(dt);
@@ -168,7 +198,7 @@ export class Player {
       this.feetY = support;
       this.velocity.y = 0;
       this.grounded = true;
-      this.remainingAirJumps = this.modifiers.airJumps;
+      this.airSpeed = 0;
       if (landed) this.effects.burst(this.position.clone().setY(support + .1), 0xd9d0b7, 4, .12, .26);
     } else {
       this.feetY = nextFeet;
@@ -177,7 +207,7 @@ export class Player {
   }
 
   jumpDebug() {
-    return this.jumpController.debug(this.grounded, this.remainingAirJumps);
+    return this.jumpController.debug(this.grounded);
   }
 
   moveAxis(axis, distance) {
