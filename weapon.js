@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { surfaceMaterial } from './graphics.js';
 
 export const SLOT_ORDER = ['primary', 'secondary', 'melee', 'utility'];
 export const SLOT_LABELS = {
@@ -114,8 +115,8 @@ export class Weapon {
   }
 
   createHands() {
-    const skin = new THREE.MeshLambertMaterial({ color: 0xf3c290, emissive: 0x3a2517, flatShading: true });
-    const sleeve = new THREE.MeshLambertMaterial({ color: 0x3f7ae0, emissive: 0x102a4a, flatShading: true });
+    const skin = surfaceMaterial(0xf3c290, { emissive: 0x3a2517, roughness: .72, envMapIntensity: .3 });
+    const sleeve = surfaceMaterial(0x3f7ae0, { emissive: 0x102a4a, roughness: .68, envMapIntensity: .3 });
     const part = (geometry, material, x, y, z, rotation) => {
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.set(x, y, z);
@@ -131,8 +132,9 @@ export class Weapon {
   createModel(definition) {
     const group = new THREE.Group();
     const shellColor = this.cosmetics?.finishColor ?? definition.color;
-    const shell = new THREE.MeshLambertMaterial({ color: shellColor, emissive: shellColor, emissiveIntensity: .2, flatShading: true });
-    const dark = new THREE.MeshLambertMaterial({ color: 0x303a60, emissive: 0x0b1025, flatShading: true });
+    // 武器はケースを樹脂、金具を金属寄りにして、手元でハイライトが動くようにする。
+    const shell = surfaceMaterial(shellColor, { emissive: shellColor, emissiveIntensity: .2, roughness: .34, metalness: .12, envMapIntensity: .8 });
+    const dark = surfaceMaterial(0x303a60, { emissive: 0x0b1025, roughness: .3, metalness: .6, envMapIntensity: .9 });
     const part = (geometry, material, x, y, z, rotation) => {
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.set(x, y, z);

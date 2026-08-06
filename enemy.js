@@ -3,6 +3,7 @@ import { enemyWeaponFor } from './enemyWeapons.js';
 import { resolveEnemyMove } from './enemyMovement.js';
 import { MOBILE_TUNING } from './mobileTuning.js';
 import { bodyBlocked, ceilingAbove, climbableTop, supportBelow, STEP_HEIGHT, jumpReach } from './collision.js';
+import { surfaceMaterial } from './graphics.js';
 const FIRE_RANGE=32; // 射撃を始める距離。アリーナの端から端まで届く程度。
 // 移動の当たり判定。プレイヤーと同じ重力・跳躍力を使い、遮蔽物の上へ登れるようにする。
 const BODY_HEIGHT=2,BODY_RADIUS=.7,MOVE_LIMIT=19;
@@ -65,15 +66,17 @@ export class Enemy {
     const group=new THREE.Group();
     // 本家アバターの色分け。シャツは赤のままにしてシルエットの赤さを保ち、
     // ズボンは濃紺、頭は本家らしい黄色みのある肌色にする。
-    const shirt=new THREE.MeshLambertMaterial({color:0xc4281c,emissive:0x2a0705}),pants=new THREE.MeshLambertMaterial({color:0x25355e,emissive:0x050a14}),
-          skin=new THREE.MeshLambertMaterial({color:0xf5cd30,emissive:0x2a2205}),metal=new THREE.MeshLambertMaterial({color:0x2b3038,emissive:0x05070a});
+    // 面取りした角は法線を滑らかに繋いでいるので、アバターだけはflatShadingを切る。
+    const fabric=(color,emissive)=>surfaceMaterial(color,{emissive,flatShading:false,roughness:.78,envMapIntensity:.35});
+    const shirt=fabric(0xc4281c,0x2a0705),pants=fabric(0x25355e,0x050a14),skin=fabric(0xf5cd30,0x2a2205),
+          metal=surfaceMaterial(0x2b3038,{emissive:0x05070a,flatShading:false,roughness:.38,metalness:.65,envMapIntensity:.6});
     this.bodyMaterials=[shirt,pants,skin];this.baseEmissive=this.bodyMaterials.map(material=>material.emissive.getHex());
     this.highlight=highlightMaterial();
     // スプライトは親のスケールが掛かるので、縮小するrigの外（groupの直下）に置く。
     this.halo=haloSprite();group.add(this.halo);
     const rig=new THREE.Group();rig.scale.setScalar(S);group.add(rig);this.rig=rig;this.parts=[];
     // 強調シェルは本体パーツにだけ重ねる。銃には付けない。
-    const piece=(parent,geometry,x,y,z,material,glow=true)=>{const mesh=new THREE.Mesh(geometry,material);mesh.position.set(x,y,z);mesh.castShadow=true;parent.add(mesh);if(glow){mesh.userData.hitZone='body';const shell=new THREE.Mesh(geometry,this.highlight);shell.scale.setScalar(1.05);shell.renderOrder=1;shell.raycast=()=>{};mesh.add(shell);this.parts.push({mesh,rest:mesh.position.clone(),velocity:new THREE.Vector3(),spin:0})}return mesh};
+    const piece=(parent,geometry,x,y,z,material,glow=true)=>{const mesh=new THREE.Mesh(geometry,material);mesh.position.set(x,y,z);mesh.castShadow=mesh.receiveShadow=true;parent.add(mesh);if(glow){mesh.userData.hitZone='body';const shell=new THREE.Mesh(geometry,this.highlight);shell.scale.setScalar(1.05);shell.renderOrder=1;shell.raycast=()=>{};mesh.add(shell);this.parts.push({mesh,rest:mesh.position.clone(),velocity:new THREE.Vector3(),spin:0})}return mesh};
     const joint=(parent,x,y,z)=>{const pivot=new THREE.Group();pivot.position.set(x,y,z);parent.add(pivot);return pivot};
     // 上半身（走ると上下に揺れる）
     const upper=joint(rig,0,0,0);this.upper=upper;
