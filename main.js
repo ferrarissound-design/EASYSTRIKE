@@ -17,20 +17,22 @@ import { CIRCUIT_RIVALS, CircuitProgress } from './circuit.js';
 import { AimAssist } from './aimAssist.js';
 import { MobileDebug } from './mobileDebug.js';
 import { bindViewportGestureLock } from './viewportGuard.js';
+import { setQuality, configureRenderer, createSkyEnvironment, refreshQuality } from './graphics.js';
 
 bindViewportGestureLock();
 const settings = loadSettings();
 applySettings(settings);
+setQuality(settings.quality);
 const audio = new GameAudio(settings);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xbfdcf8);
 scene.fog = new THREE.Fog(0xcfe5fa, 46, 92);
 const camera = new THREE.PerspectiveCamera(78, innerWidth / innerHeight, .1, 100);
 const renderer = new THREE.WebGLRenderer({ antialias: settings.quality !== 'low', powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, settings.quality === 'high' ? 2 : 1.25));
+configureRenderer(renderer);
 renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = settings.quality !== 'low';
 document.getElementById('game').append(renderer.domElement);
+scene.environment = createSkyEnvironment(renderer);
 
 const colliders = [];
 const obstacles = [];
@@ -91,7 +93,13 @@ function selectDifficulty(value) {
 
 document.querySelectorAll('#difficulty button').forEach(button => { button.onclick = () => selectDifficulty(button.dataset.value); });
 selectDifficulty(difficultyKey);
-bindSettings(settings, () => { audio.settings = settings; });
+let appliedQuality = settings.quality;
+bindSettings(settings, () => {
+  audio.settings = settings;
+  if (settings.quality === appliedQuality) return;
+  appliedQuality = settings.quality;
+  refreshQuality(renderer, scene, settings.quality);
+});
 
 function selectRivalStyle(value) {
   rivalStyleKey = value;

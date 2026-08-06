@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { surfaceMaterial, tuneSunShadow, ambientFill, tuneTexture } from './graphics.js';
 
 export const ARENA_SIZE = 42;
 export const PLAYER_SPAWN = new THREE.Vector3(0, 1.7, 16);
@@ -50,21 +51,35 @@ const SNOW = {
   cliff: 0xccdcf1,
 };
 
+// Roughness per palette entry, so steel, ice and concrete catch the sun differently
+// instead of every block reading as the same matte plastic.
+const SURFACES = {
+  [COLOR.floor]: { roughness: .94, envMapIntensity: .18 },
+  [COLOR.white]: { roughness: .88, envMapIntensity: .24 },
+  [COLOR.blockDark]: { roughness: .74, envMapIntensity: .3 },
+  [COLOR.ink]: { roughness: .6, metalness: .18, envMapIntensity: .4 },
+  [SNOW.floor]: { roughness: .96, envMapIntensity: .16 },
+  [SNOW.panel]: { roughness: .8, envMapIntensity: .26 },
+  [SNOW.steel]: { roughness: .42, metalness: .5, envMapIntensity: .75 },
+  [SNOW.ice]: { roughness: .16, metalness: .1, envMapIntensity: .95 },
+  [SNOW.cliff]: { roughness: .92, envMapIntensity: .2 },
+};
+
 const THEMES = {
   default: {
     floor: COLOR.floor, grid: COLOR.grid, gridDivisions: 14, gridOpacity: .7,
     wallEnd: [COLOR.red, COLOR.blue], wallSide: COLOR.ink, trim: COLOR.white,
     zenith: 0x438be0, horizon: 0xe3f1ff,
-    hemiSky: 0xe6f2ff, hemiGround: 0x7b86a7, hemi: 1.75,
-    sun: 0xfff7ef, sunIntensity: 1.65, sunPosition: [8, 18, 10],
+    hemiSky: 0xe6f2ff, hemiGround: 0x7b86a7, hemi: .5,
+    sun: 0xfff7ef, sunIntensity: 3.15, sunPosition: [11, 13, 9],
     points: [[-13, 7, -10, 0x4f91ff], [13, 7, 10, 0xff5d91]],
   },
   summit: {
     floor: SNOW.floor, grid: SNOW.grid, gridDivisions: 21, gridOpacity: .34,
     wallEnd: [SNOW.red, SNOW.blue], wallSide: SNOW.steel, trim: SNOW.panel,
     zenith: 0x2c78d8, horizon: 0xf4fbff,
-    hemiSky: 0xf3faff, hemiGround: 0x9fb2d0, hemi: 2.05,
-    sun: 0xfffdf4, sunIntensity: 1.85, sunPosition: [-11, 20, 7],
+    hemiSky: 0xf3faff, hemiGround: 0x9fb2d0, hemi: .58,
+    sun: 0xfffdf4, sunIntensity: 3.35, sunPosition: [-13, 14, 8],
     points: [[-12, 6, 9, 0x63a8ff], [12, 6, -9, 0xff6f9c]],
   },
 };
@@ -90,9 +105,8 @@ function snowPattern() {
   context.strokeStyle = 'rgba(196,218,244,.55)';
   context.lineWidth = 2;
   context.strokeRect(0, 0, size, size);
-  snowSource = new THREE.CanvasTexture(canvas);
+  snowSource = tuneTexture(new THREE.CanvasTexture(canvas));
   snowSource.wrapS = snowSource.wrapT = THREE.RepeatWrapping;
-  snowSource.colorSpace = THREE.SRGBColorSpace;
   return snowSource;
 }
 
@@ -109,8 +123,7 @@ function cloudPattern() {
   gradient.addColorStop(1, 'rgba(255,255,255,0)');
   context.fillStyle = gradient;
   context.fillRect(0, 0, size, size);
-  cloudSource = new THREE.CanvasTexture(canvas);
-  cloudSource.colorSpace = THREE.SRGBColorSpace;
+  cloudSource = tuneTexture(new THREE.CanvasTexture(canvas));
   return cloudSource;
 }
 
@@ -130,9 +143,8 @@ function studPattern() {
   context.lineWidth = 4;
   context.strokeStyle = '#ffffff';
   context.stroke();
-  studSource = new THREE.CanvasTexture(canvas);
+  studSource = tuneTexture(new THREE.CanvasTexture(canvas));
   studSource.wrapS = studSource.wrapT = THREE.RepeatWrapping;
-  studSource.colorSpace = THREE.SRGBColorSpace;
   return studSource;
 }
 
@@ -142,7 +154,7 @@ export function createArena(scene, colliders, mapKey = 'crossline', sharedObstac
   const obstacles = sharedObstacles;
   colliders.length = 0;
   obstacles.length = 0;
-  const material = color => new THREE.MeshLambertMaterial({ color, flatShading: true });
+  const material = color => surfaceMaterial(color, SURFACES[color] || { roughness: .82 });
   const edgeMaterial = new THREE.LineBasicMaterial({ color: COLOR.ink, transparent: true, opacity: .32 });
 
   const add = (geometry, color, x, y, z, solid = true, rotationY = 0) => {
@@ -204,7 +216,7 @@ export function createArena(scene, colliders, mapKey = 'crossline', sharedObstac
   if (summit) {
     const snow = new THREE.Mesh(
       new THREE.PlaneGeometry(ARENA_SIZE, ARENA_SIZE),
-      new THREE.MeshLambertMaterial({ color: SNOW.floor, map: snowPattern().clone() }),
+      surfaceMaterial(SNOW.floor, { roughness: .96, flatShading: false, map: snowPattern().clone() }),
     );
     snow.material.map.needsUpdate = true;
     snow.material.map.repeat.set(12, 12);
@@ -357,13 +369,16 @@ export function createArena(scene, colliders, mapKey = 'crossline', sharedObstac
   root.add(new THREE.Mesh(sky, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false })));
 
   root.add(new THREE.HemisphereLight(theme.hemiSky, theme.hemiGround, theme.hemi));
+  const fill = ambientFill();
+  if (fill) root.add(new THREE.AmbientLight(theme.hemiSky, fill));
   const sun = new THREE.DirectionalLight(theme.sun, theme.sunIntensity);
-  sun.position.set(...theme.sunPosition);
+  // Pushed out along the same direction so the shadow frustum clears the tall pieces.
+  sun.position.set(...theme.sunPosition).normalize().multiplyScalar(46);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
+  tuneSunShadow(sun, 30);
   root.add(sun);
   theme.points.forEach(([x, y, z, color]) => {
-    const light = new THREE.PointLight(color, 220, 26, 2);
+    const light = new THREE.PointLight(color, 40, 20, 2);
     light.position.set(x, y, z);
     root.add(light);
   });
