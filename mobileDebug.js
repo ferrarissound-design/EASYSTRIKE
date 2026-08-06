@@ -13,12 +13,12 @@ export class MobileDebug {
     if (this.timer > 0) return;
     this.timer = .1;
     this.panel.innerHTML = [
-      `TARGET ${aim.target}`,
-      `ANGLE ${aim.angle.toFixed(1)}° / CONE ${aim.limit.toFixed(0)}° / DIST ${aim.distance.toFixed(1)}`,
-      `ASSIST ${(aim.strength * 100).toFixed(0)}% / WALL ${aim.wallClear ? 'CLEAR' : 'BLOCKED'}`,
-      `TOUCH ${controls.lastInput === 'touch' ? 'YES' : 'NO'} / LOOK ${controls.touchLooking ? 'DRAG' : 'IDLE'}`,
-      `JUMP ${jump.canJump ? 'READY' : 'LOCKED'}`,
-      `BUFFER ${jump.bufferRemaining.toFixed(2)} / COYOTE ${jump.coyoteRemaining.toFixed(2)}`,
+      `対象 ${aim.target}`,
+      `角度 ${aim.angle.toFixed(1)}° / 範囲 ${aim.limit.toFixed(0)}° / 距離 ${aim.distance.toFixed(1)}`,
+      `補正 ${(aim.strength * 100).toFixed(0)}% / 壁 ${aim.wallClear ? '見通しあり' : '遮られている'}`,
+      `タッチ ${controls.lastInput === 'touch' ? 'あり' : 'なし'} / 視点 ${controls.touchLooking ? '操作中' : '待機'}`,
+      `ジャンプ ${jump.canJump ? '可能' : '不可'}`,
+      `先行入力 ${jump.bufferRemaining.toFixed(2)} / コヨーテ ${jump.coyoteRemaining.toFixed(2)}`,
     ].join('<br>');
     this.range.classList.toggle('active', aim.active);
   }

@@ -2,8 +2,8 @@ export const CONTRACTS = [
   { id: 'rounds', stat: 'roundsWon', title: 'ラウンドハンター', detail: 'ラウンドを5本取る', target: 5, reward: 1 },
   { id: 'heads', stat: 'headshots', title: 'ヘッドライン', detail: 'ヘッドショットを10回決める', target: 10, reward: 1 },
   { id: 'slides', stat: 'slides', title: 'ローフライヤー', detail: 'スライドを15回使う', target: 15, reward: 1 },
-  { id: 'utility', stat: 'utilityHits', title: 'ツールマスター', detail: 'Utilityを5回命中させる', target: 5, reward: 2 },
-  { id: 'matches', stat: 'matchesWon', title: '連勝への一歩', detail: 'DUELで3勝する', target: 3, reward: 3 },
+  { id: 'utility', stat: 'utilityHits', title: 'ツールマスター', detail: '道具を5回命中させる', target: 5, reward: 2 },
+  { id: 'matches', stat: 'matchesWon', title: '連勝への一歩', detail: 'デュエルで3勝する', target: 3, reward: 3 },
   { id: 'range', stat: 'rangeHits', title: 'ウォームアップ', detail: '射撃場で25回命中させる', target: 25, reward: 1 },
 ];
 

@@ -127,7 +127,7 @@ document.querySelectorAll('#arenaMap button').forEach(button => { button.onclick
 selectArenaMap(arenaMapKey);
 
 function renderCircuitRecord() {
-  document.getElementById('circuitRecord').textContent = `BEST ${circuitProgress.data.bestStage}/5 · ${circuitProgress.formatTime()}`;
+  document.getElementById('circuitRecord').textContent = `最高 ${circuitProgress.data.bestStage}/5 · ${circuitProgress.formatTime()}`;
 }
 
 function startCircuit() {
@@ -152,17 +152,17 @@ function showCircuitCard() {
   setPanel('circuit', true);
   const card = document.querySelector('.circuit-card');
   card.style.setProperty('--rival-color', activeRival.color);
-  document.getElementById('circuitStage').textContent = `STAGE ${circuitIndex + 1} / ${CIRCUIT_RIVALS.length}`;
-  document.getElementById('circuitKeys').textContent = `+${activeRival.reward} KEY · FIRST TO ${activeRival.firstTo}`;
+  document.getElementById('circuitStage').textContent = `ステージ ${circuitIndex + 1} / ${CIRCUIT_RIVALS.length}`;
+  document.getElementById('circuitKeys').textContent = `+${activeRival.reward} キー · ${activeRival.firstTo}本先取`;
   document.getElementById('circuitName').textContent = activeRival.name;
   document.getElementById('circuitTitle').textContent = activeRival.title;
   document.getElementById('circuitQuote').textContent = `“${activeRival.quote}”`;
-  document.getElementById('circuitWeapon').textContent = activeRival.weapon === 'adaptive' ? 'SHIFT ARSENAL' : activeRival.weapon.toUpperCase();
+  document.getElementById('circuitWeapon').textContent = ({ adaptive: '変化する武器', scatter: '散弾銃', pulse: 'パルス', rail: 'レールガン', cannon: 'キャノン' })[activeRival.weapon] || activeRival.weapon;
   document.getElementById('circuitStyle').textContent = activeStyle.label;
   document.getElementById('circuitMap').textContent = ARENA_MAPS[activeRival.map].name;
   document.getElementById('circuitWeakness').textContent = activeRival.weakness;
   document.getElementById('rivalEmblem').textContent = activeRival.name[0];
-  document.getElementById('circuitLaunch').textContent = circuitIndex === CIRCUIT_RIVALS.length - 1 ? 'FACE THE CHAMPION' : 'CHALLENGE';
+  document.getElementById('circuitLaunch').textContent = circuitIndex === CIRCUIT_RIVALS.length - 1 ? '王者に挑戦' : '挑戦する';
   const route = document.getElementById('circuitRoute');
   route.replaceChildren(...CIRCUIT_RIVALS.map((_, index) => {
     const node = document.createElement('i');
@@ -236,7 +236,7 @@ function renderLoadout() {
 }
 
 function renderContracts() {
-  document.getElementById('menuKeys').textContent = `${contracts.keys} KEY`;
+  document.getElementById('menuKeys').textContent = `${contracts.keys} キー`;
   document.getElementById('contractKeys').textContent = contracts.keys;
   const list = document.getElementById('contractList');
   list.replaceChildren();
@@ -244,7 +244,7 @@ function renderContracts() {
     const progress = contracts.progress(contract);
     const row = document.createElement('div');
     row.className = `contract ${progress >= contract.target ? 'done' : ''}`;
-    row.innerHTML = `<div><b>${contract.title}</b><small>${contract.detail}</small></div><b>${progress >= contract.target ? '完了' : `${progress}/${contract.target} • +${contract.reward} KEY`}</b><div class="contract-progress"><i style="width:${progress / contract.target * 100}%"></i></div>`;
+    row.innerHTML = `<div><b>${contract.title}</b><small>${contract.detail}</small></div><b>${progress >= contract.target ? '完了' : `${progress}/${contract.target} • +${contract.reward} キー`}</b><div class="contract-progress"><i style="width:${progress / contract.target * 100}%"></i></div>`;
     list.append(row);
   });
 }
@@ -253,7 +253,7 @@ function renderCosmetics() {
   document.getElementById('lockerKeys').textContent = contracts.keys;
   const grid = document.getElementById('cosmeticGrid');
   grid.replaceChildren();
-  [['finish', 'WEAPON FINISH'], ['impact', 'IMPACT FX'], ['title', 'PLAYER TITLE']].forEach(([category, label]) => {
+  [['finish', '武器カラー'], ['impact', '命中エフェクト'], ['title', 'プレイヤー称号']].forEach(([category, label]) => {
     const group = document.createElement('section');
     group.className = 'cosmetic-group';
     group.innerHTML = `<h3>${label}</h3>`;
@@ -264,12 +264,12 @@ function renderCosmetics() {
       button.dataset.cosmetic = item.id;
       button.className = `cosmetic-item ${selected ? 'selected' : ''} ${owned ? '' : 'locked'}`;
       button.disabled = !!item.exclusive && !owned;
-      button.innerHTML = `<b>${item.name}</b><small>${item.detail}</small><em>${selected ? 'EQUIPPED' : owned ? 'OWNED' : item.exclusive ? 'CIRCUIT REWARD' : `${item.cost} KEY`}</em>`;
+      button.innerHTML = `<b>${item.name}</b><small>${item.detail}</small><em>${selected ? '装備中' : owned ? '入手済み' : item.exclusive ? 'サーキット報酬' : `${item.cost} キー`}</em>`;
       button.onclick = () => {
         const result = locker.unlockAndSelect(item.id, contracts);
         if (!result.ok) {
           audio.play('defeat');
-          button.querySelector('em').textContent = `NEED ${item.cost} KEY`;
+          button.querySelector('em').textContent = `${item.cost} キー必要`;
           return;
         }
         weapon.setCosmetics(locker.loadout());
@@ -359,7 +359,7 @@ function startRange() {
   controls.clearActions();
   preparePlayView();
   ui.setRounds(0, 0, 0, 'RANGE');
-  ui.showBanner('SHOOTING RANGE', '命中・ヘッドショット・Utilityを練習', 1250);
+  ui.showBanner('射撃場', '命中・ヘッドショット・道具を練習', 1250);
 }
 
 document.getElementById('duelButton').onclick = startDuel;
@@ -381,16 +381,16 @@ async function beginRound() {
   ui.update(player, weapon, enemy);
   effects.ring(PLAYER_SPAWN, 0x64c7ff);
   effects.ring(RIVAL_SPAWN, 0xff5b82);
-  ui.showBanner(`ROUND ${roundNumber}`, `FIRST TO ${roundTarget}`);
+  ui.showBanner(`ラウンド ${roundNumber}`, `${roundTarget}本先取`);
   await delay(650);
   for (const count of ['3', '2', '1']) {
     if (token !== roundToken || state !== 'countdown') return;
-    ui.showBanner(count, 'GET READY');
+    ui.showBanner(count, '準備');
     audio.play('round');
     await delay(520);
   }
   if (token !== roundToken || state !== 'countdown') return;
-  ui.showBanner('BLAST!', 'FIGHT', 520);
+  ui.showBanner('ブラスト！', '開始', 520);
   state = 'playing';
 }
 
@@ -405,13 +405,13 @@ function finishRound(playerWon) {
     playerRounds++;
     if (player.hp <= Math.min(25, player.maxHp * .25)) stats.clutches++;
     record('roundsWon');
-    ui.feed('YOU ▸ RIVAL', true);
+    ui.feed('自分 ▸ ライバル', true);
   } else {
     rivalRounds++;
-    ui.feed('RIVAL ▸ YOU');
+    ui.feed('ライバル ▸ 自分');
   }
   ui.setRounds(playerRounds, rivalRounds, roundNumber, mode === 'circuit' ? 'CIRCUIT' : 'DUEL', roundTarget);
-  ui.showBanner(playerWon ? 'ROUND WON' : 'ROUND LOST', `${playerRounds} — ${rivalRounds}`);
+  ui.showBanner(playerWon ? 'ラウンド勝利' : 'ラウンド敗北', `${playerRounds} — ${rivalRounds}`);
   if (playerRounds >= roundTarget || rivalRounds >= roundTarget) {
     setTimeout(() => finishMatch(playerRounds >= roundTarget), 1200);
     return;
@@ -433,7 +433,7 @@ function showGearDraft(clutch = false) {
   state = 'gearSelect';
   document.exitPointerLock?.();
   const choices = gearDraft.choices();
-  document.getElementById('gearEyebrow').textContent = clutch ? 'CLUTCH PICK' : 'ROUND UPGRADE';
+  document.getElementById('gearEyebrow').textContent = clutch ? '逆転ギア' : 'ラウンド強化';
   const container = document.getElementById('gearChoices');
   container.replaceChildren();
   choices.forEach((gear, index) => {
@@ -471,7 +471,7 @@ function finishMatch(win) {
   }
   audio.play(win ? 'victory' : 'defeat');
   const earnedKeys = (win ? 1 : 0) + pendingRewards.reduce((sum, contract) => sum + contract.reward, 0);
-  const rewardText = earnedKeys ? `${earnedKeys} KEY獲得` : '';
+  const rewardText = earnedKeys ? `${earnedKeys} キー獲得` : '';
   ui.end(win, playerRounds, rivalRounds, stats, rewardText, locker.loadout().title);
 }
 
@@ -479,8 +479,8 @@ function finishCircuitMatch(win) {
   const contractKeys = pendingRewards.reduce((sum, contract) => sum + contract.reward, 0);
   if (!win) {
     audio.play('defeat');
-    document.getElementById('again').textContent = 'RETRY STAGE';
-    ui.end(false, playerRounds, rivalRounds, stats, '', `${activeRival.name} STOPPED THE RUN`, activeRival.name);
+    document.getElementById('again').textContent = 'ステージ再挑戦';
+    ui.end(false, playerRounds, rivalRounds, stats, '', `${activeRival.name}に阻止された`, activeRival.name);
     return;
   }
 
@@ -492,7 +492,7 @@ function finishCircuitMatch(win) {
   if (!finalStage) {
     state = 'circuitTransition';
     audio.play('victory');
-    ui.showBanner('RIVAL DEFEATED', `${activeRival.name} · +${activeRival.reward + contractKeys} KEY`, 900);
+    ui.showBanner('ライバル撃破', `${activeRival.name} · +${activeRival.reward + contractKeys} キー`, 900);
     setTimeout(() => {
       if (state !== 'circuitTransition') return;
       circuitIndex++;
@@ -507,8 +507,8 @@ function finishCircuitMatch(win) {
   weapon.setCosmetics(locker.loadout());
   renderCircuitRecord();
   audio.play('victory');
-  document.getElementById('again').textContent = 'RUN AGAIN';
-  ui.end(true, playerRounds, rivalRounds, stats, `${circuitRunKeys} KEY · ${circuitProgress.formatTime(elapsed)}`, 'CIRCUIT CHAMPION', activeRival.name);
+  document.getElementById('again').textContent = 'もう一度挑戦';
+  ui.end(true, playerRounds, rivalRounds, stats, `${circuitRunKeys} キー · ${circuitProgress.formatTime(elapsed)}`, 'サーキット王者', activeRival.name);
 }
 
 function showMenu() {
@@ -547,7 +547,7 @@ enemy.onDeath = () => {
   }
   if (state !== 'range') return;
   rangeTarget++;
-  ui.feed(`TARGET ${rangeTarget}`, true);
+  ui.feed(`ターゲット ${rangeTarget}`, true);
   const token = roundToken;
   setTimeout(() => {
     if (state !== 'range' || token !== roundToken) return;
@@ -583,7 +583,7 @@ const weaponHandlers = {
     ui.damage(damage, position, meta);
   },
   onUtility(type) {
-    if (type === 'heal') ui.feed('HEAL +45', true);
+    if (type === 'heal') ui.feed('回復 +45', true);
   },
 };
 
