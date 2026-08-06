@@ -110,9 +110,23 @@
     <header class="match-header">
       <div class="brand">FIRST <b>BLAST</b></div>
       <div class="scoreboard">
-        <div class="score-side blue"><span>自分</span><b id="playerRounds">0</b><i id="playerRoundDots"></i></div>
-        <div class="round-label"><span id="modeLabel">デュエル</span><small id="roundNumber">ラウンド 1</small></div>
-        <div class="score-side red"><b id="rivalRounds">0</b><span id="rivalName">ライバル</span><i id="rivalRoundDots"></i></div>
+        <div class="score-side blue">
+          <i class="score-avatar" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4.2"/><path d="M3.6 21.5a8.4 8.4 0 0 1 16.8 0z"/></svg></i>
+          <b id="playerRounds">0</b>
+          <span>自分</span>
+          <i id="playerRoundDots" class="score-pips"></i>
+        </div>
+        <div class="round-clock">
+          <b id="roundClock">0:00</b>
+          <small id="roundNumber">ラウンド 1</small>
+          <em id="modeLabel">デュエル</em>
+        </div>
+        <div class="score-side yellow">
+          <i class="score-avatar" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4.2"/><path d="M3.6 21.5a8.4 8.4 0 0 1 16.8 0z"/></svg></i>
+          <b id="rivalRounds">0</b>
+          <span id="rivalName">ライバル</span>
+          <i id="rivalRoundDots" class="score-pips"></i>
+        </div>
       </div>
       <button id="menuButton" class="hud-menu">メニュー</button>
     </header>
@@ -132,7 +146,7 @@
     </div>
     <div class="ammo">
       <span id="weaponName">パルスライフル</span>
-      <b id="ammo">24</b>
+      <div class="ammo-count"><b id="ammo">24</b><small id="ammoMax">/24</small></div>
       <small id="reloadText"></small>
     </div>
     <div id="gearHud" class="gear-hud"></div>
@@ -145,13 +159,27 @@
   <div id="mobile" class="hidden">
     <div id="stick"><i></i></div>
     <div id="look"></div>
-    <button id="fire">射撃</button>
-    <button id="jump">ジャンプ</button>
-    <button id="crouch">スライド</button>
-    <button id="aim">照準</button>
-    <button id="reload">R</button>
-    <button id="quickMelee">Q</button>
-    <button id="quickUtility">E</button>
+    <button id="fire" aria-label="射撃">
+      <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 1.6v3.6M12 18.8v3.6M1.6 12h3.6M18.8 12h3.6"/><circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none"/></svg>
+    </button>
+    <button id="jump" aria-label="ジャンプ">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M12 20.5V4.6"/><path d="M5.2 11.4 12 4.6l6.8 6.8"/></svg>
+    </button>
+    <button id="crouch" aria-label="スライド">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M12 3.5v11.6"/><path d="M5.2 8.3 12 15.1l6.8-6.8"/><path d="M4.8 20.2h14.4"/></svg>
+    </button>
+    <button id="aim" aria-label="照準">
+      <svg class="icon" viewBox="0 0 24 24"><circle cx="10.4" cy="10.4" r="6.6"/><path d="M10.4 6.8v7.2M6.8 10.4h7.2M15.2 15.2l5 5"/></svg>
+    </button>
+    <button id="reload" aria-label="リロード">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M22.4 4.2v6h-6"/><path d="M19.9 15a8.6 8.6 0 1 1-2-9L22.4 10"/></svg>
+    </button>
+    <button id="quickMelee" aria-label="近接攻撃">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M20.6 3.4 12.9 13.9 10.1 11.1z" fill="currentColor" stroke="none"/><path d="M9.3 10.3 13.7 14.7"/><path d="M10.9 13.1 7.2 16.8"/></svg>
+    </button>
+    <button id="quickUtility" aria-label="道具">
+      <svg class="icon" viewBox="0 0 24 24"><circle cx="11.4" cy="14.3" r="6.2"/><path d="M9.3 8.3V5.7h4.2v2.6"/><path d="M13.5 6.4h3.2"/><circle cx="18.6" cy="6.4" r="1.9"/></svg>
+    </button>
   </div>
 
   <section id="circuit" class="panel circuit-panel hidden">

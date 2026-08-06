@@ -367,6 +367,7 @@ function startRange() {
   controls.clearActions();
   preparePlayView();
   ui.setRounds(0, 0, 0, 'RANGE');
+  ui.startRoundClock();
   ui.showBanner('射撃場', '命中・ヘッドショット・道具を練習', 1250);
 }
 
@@ -386,6 +387,8 @@ async function beginRound() {
   controls.clearActions();
   const matchLabel = mode === 'circuit' ? 'CIRCUIT' : 'DUEL';
   ui.setRounds(playerRounds, rivalRounds, roundNumber, matchLabel, roundTarget);
+  // カウントダウン中は state が playing ではないため、ループ側で経過時間は進まない。
+  ui.startRoundClock();
   ui.update(player, weapon, enemy);
   effects.ring(PLAYER_SPAWN, 0x64c7ff);
   effects.ring(RIVAL_SPAWN, 0xff5b82);
@@ -405,6 +408,7 @@ async function beginRound() {
 function finishRound(playerWon) {
   if (state !== 'playing') return;
   state = 'roundEnd';
+  ui.stopRoundClock();
   roundToken++;
   enemy.clearShots();
   weapon.clearProjectiles();
@@ -522,6 +526,7 @@ function finishCircuitMatch(win) {
 function showMenu() {
   roundToken++;
   state = 'menu';
+  ui.stopRoundClock();
   enemy.gameEnded = true;
   enemy.clearShots();
   weapon.clearProjectiles();
@@ -597,7 +602,10 @@ const weaponHandlers = {
 
 function loop() {
   requestAnimationFrame(loop);
-  const dt = Math.min(clock.getDelta(), .04);
+  // 物理は1フレーム .04 秒で頭打ちにする。経過時間の表示だけは実測値を渡し、
+  // 低フレームレートの端末で時計が遅れないようにする。
+  const frameSeconds = clock.getDelta();
+  const dt = Math.min(frameSeconds, .04);
   const active = state === 'playing' || state === 'range';
   if (active) {
     const input = controls.sample();
@@ -611,7 +619,7 @@ function loop() {
     player.update(dt, input, controls.look, assist);
     weapon.update(dt, input, player, enemy, obstacles, weaponHandlers);
     enemy.update(dt, player, hurt);
-    ui.update(player, weapon, enemy);
+    ui.update(player, weapon, enemy, frameSeconds);
     mobileDebug.update(dt, touchAimAssist.debugState, player.jumpDebug(), controls);
   }
   effects.update(dt);
