@@ -52,7 +52,7 @@ export class UI {
   }
 
   setRivalStyle(style) {
-    document.getElementById('rivalName').textContent = style?.label || 'RIVAL';
+    document.getElementById('rivalName').textContent = style?.label || 'ライバル';
   }
 
   selectWeapon(index) {
@@ -61,10 +61,11 @@ export class UI {
   }
 
   setRounds(playerRounds, rivalRounds, roundNumber, mode = 'DUEL', target = 5) {
+    const modeLabels = { DUEL: 'デュエル', CIRCUIT: 'サーキット', RANGE: '射撃場' };
     this.write(document.getElementById('playerRounds'), 'playerRounds', playerRounds);
     this.write(document.getElementById('rivalRounds'), 'rivalRounds', rivalRounds);
-    this.write(document.getElementById('roundNumber'), 'roundNumber', mode === 'RANGE' ? 'FREE PRACTICE' : `ROUND ${roundNumber}`);
-    this.write(document.getElementById('modeLabel'), 'modeLabel', mode);
+    this.write(document.getElementById('roundNumber'), 'roundNumber', mode === 'RANGE' ? '自由練習' : `ラウンド ${roundNumber}`);
+    this.write(document.getElementById('modeLabel'), 'modeLabel', modeLabels[mode] || mode);
     [['playerRoundDots', playerRounds], ['rivalRoundDots', rivalRounds]].forEach(([id, score]) => {
       const box = document.getElementById(id);
       box.style.gridTemplateColumns = `repeat(${target}, 1fr)`;
@@ -95,9 +96,9 @@ export class UI {
     }
     this.write(this.hpText, 'hpText', Math.ceil(player.hp));
     this.write(this.ammo, 'ammo', weapon.currentAmmo);
-    this.write(this.reload, 'reload', weapon.reloading ? 'RELOADING...' : weapon.cooldownLabel);
+    this.write(this.reload, 'reload', weapon.reloading ? 'リロード中…' : weapon.cooldownLabel);
     this.write(this.weaponName, 'weaponName', weapon.definition.name);
-    this.write(this.buffs, 'buffs', player.sliding ? 'SLIDING' : player.crouched ? 'CROUCHED' : player.sprinting ? 'SPRINTING' : '');
+    this.write(this.buffs, 'buffs', player.sliding ? 'スライド中' : player.crouched ? 'しゃがみ中' : player.sprinting ? 'ダッシュ中' : '');
     this.nametag(enemy);
   }
 
@@ -133,14 +134,14 @@ export class UI {
     const vector = position.clone().project(this.camera);
     const element = document.createElement('div');
     element.className = `damage-number ${meta.headshot ? 'headshot' : ''} ${meta.kill ? 'kill' : ''}`;
-    element.textContent = meta.kill ? `KO ${amount}` : meta.headshot ? `HEAD ${amount}` : amount;
+    element.textContent = meta.kill ? `撃破 ${amount}` : meta.headshot ? `頭 ${amount}` : amount;
     element.style.left = `${(vector.x * .5 + .5) * innerWidth}px`;
     element.style.top = `${(-vector.y * .5 + .5) * innerHeight}px`;
     this.damageLayer.append(element);
     setTimeout(() => element.remove(), 850);
     this.marker(meta);
-    if (meta.kill) this.callout('ELIMINATED', meta.headshot ? 'HEADSHOT FINISH' : 'ROUND POINT', true);
-    else if (meta.headshot) this.callout('HEADSHOT', `${amount} DAMAGE`);
+    if (meta.kill) this.callout('撃破！', meta.headshot ? 'ヘッドショットで決着' : 'ラウンドポイント', true);
+    else if (meta.headshot) this.callout('ヘッドショット', `${amount} ダメージ`);
   }
 
   feed(text, mine = false) {
@@ -181,12 +182,12 @@ export class UI {
     this.flashTimer = setTimeout(() => this.damageFlash.classList.remove('active'), 75);
   }
 
-  end(win, playerRounds, rivalRounds, stats, contractText = '', playerTitle = 'FIRST BLAST', rivalName = 'RIVAL') {
+  end(win, playerRounds, rivalRounds, stats, contractText = '', playerTitle = 'ファーストブラスト', rivalName = 'ライバル') {
     document.exitPointerLock?.();
     document.getElementById('resultEyebrow').textContent = playerTitle;
     document.getElementById('resultReward').textContent = contractText;
-    document.getElementById('result').textContent = win ? 'VICTORY' : 'DEFEAT';
-    document.getElementById('resultDetail').textContent = `YOU ${playerRounds}  —  ${rivalRounds} ${rivalName}`;
+    document.getElementById('result').textContent = win ? '勝利' : '敗北';
+    document.getElementById('resultDetail').textContent = `自分 ${playerRounds}  —  ${rivalRounds} ${rivalName}`;
     const accuracy = stats.shots ? Math.round(stats.hits / stats.shots * 100) : 0;
     document.getElementById('matchStats').innerHTML = `
       <div><b>${accuracy}%</b><small>命中率</small></div>

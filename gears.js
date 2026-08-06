@@ -1,10 +1,10 @@
 export const GEARS = [
-  { id: 'quick-hands', name: 'QUICK HANDS', icon: '>>', detail: 'Reload 35% faster', modifiers: { reloadSpeed: 1.54 } },
-  { id: 'air-step', name: 'AIR STEP', icon: 'UP', detail: 'Gain one mid-air jump', modifiers: { airJumps: 1 } },
-  { id: 'hunter', name: 'HUNTER', icon: '◎', detail: 'Hits reveal the rival for 2.5s', modifiers: { reveal: true } },
-  { id: 'heavy-round', name: 'HEAVY ROUND', icon: '◆', detail: '+18% damage, -12% fire rate', modifiers: { damage: 1.18, fireRate: .88 } },
-  { id: 'second-wind', name: 'SECOND WIND', icon: '+', detail: '+24% speed below 30 HP', modifiers: { lowHealthSpeed: 1.24 } },
-  { id: 'gravity-shot', name: 'GRAVITY SHOT', icon: 'G', detail: 'Hits push the rival off their line', modifiers: { gravityShot: true } },
+  { id: 'quick-hands', name: '高速装填', icon: '>>', detail: 'リロード速度が35%アップ', modifiers: { reloadSpeed: 1.54 } },
+  { id: 'air-step', name: '空中ステップ', icon: 'UP', detail: '空中ジャンプを1回追加', modifiers: { airJumps: 1 } },
+  { id: 'hunter', name: 'ハンター', icon: '◎', detail: '命中したライバルを2.5秒間表示', modifiers: { reveal: true } },
+  { id: 'heavy-round', name: '強装弾', icon: '◆', detail: 'ダメージ+18%、連射速度-12%', modifiers: { damage: 1.18, fireRate: .88 } },
+  { id: 'second-wind', name: 'セカンドウィンド', icon: '+', detail: 'HP30%未満で移動速度+24%', modifiers: { lowHealthSpeed: 1.24 } },
+  { id: 'gravity-shot', name: '重力弾', icon: 'G', detail: '命中したライバルを押し出す', modifiers: { gravityShot: true } },
 ];
 
 export class GearDraft {

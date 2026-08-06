@@ -24,7 +24,7 @@ export class AimAssist {
   }
 
   emptyDebug() {
-    return { target: 'NONE', angle: 0, limit: this.tuning.AssistAngle, distance: 0, strength: 0, wallClear: false, active: false };
+    return { target: 'なし', angle: 0, limit: this.tuning.AssistAngle, distance: 0, strength: 0, wallClear: false, active: false };
   }
 
   clearTarget() {
@@ -134,7 +134,7 @@ export class AimAssist {
     const rate = this.tuning.AssistStrength * this.tuning.TrackingStrength * strength;
     const slowdown = 1 - (1 - this.tuning.SlowdownMultiplier) * settingStrength * angleWeight;
     this.debugState = {
-      target: data.target.name || data.target.group?.name || 'RIVAL',
+      target: data.target.name || data.target.group?.name || 'ライバル',
       angle: data.angle,
       limit: this.tuning.AssistAngle,
       distance: data.distance,

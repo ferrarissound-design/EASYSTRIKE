@@ -2,25 +2,25 @@ import * as THREE from 'three';
 
 export const SLOT_ORDER = ['primary', 'secondary', 'melee', 'utility'];
 export const SLOT_LABELS = {
-  primary: 'PRIMARY', secondary: 'SECONDARY', melee: 'MELEE', utility: 'UTILITY',
+  primary: 'メイン武器', secondary: 'サブ武器', melee: '近接武器', utility: '道具',
 };
 
 export const LOADOUT_OPTIONS = {
   primary: [
-    { id: 'pulse-rifle', name: 'PULSE RIFLE', shortName: 'PULSE', description: '安定した高速連射ライフル', ammo: 24, damage: 18, rate: .105, reload: 1.25, color: 0x6eeaff, sound: 'pulse', automatic: true, model: 'rifle' },
-    { id: 'scatter-blaster', name: 'SCATTER BLASTER', shortName: 'SCATTER', description: '近距離で強い6発散弾', ammo: 6, damage: 13, rate: .72, reload: 1.45, color: 0xffa937, sound: 'spark', pellets: 6, spread: .07, model: 'scatter' },
+    { id: 'pulse-rifle', name: 'パルスライフル', shortName: 'パルス', description: '安定した高速連射ライフル', ammo: 24, damage: 18, rate: .105, reload: 1.25, color: 0x6eeaff, sound: 'pulse', automatic: true, model: 'rifle' },
+    { id: 'scatter-blaster', name: 'スキャッターブラスター', shortName: '散弾銃', description: '近距離で強い6発散弾', ammo: 6, damage: 13, rate: .72, reload: 1.45, color: 0xffa937, sound: 'spark', pellets: 6, spread: .07, model: 'scatter' },
   ],
   secondary: [
-    { id: 'spark-pistol', name: 'SPARK PISTOL', shortName: 'SPARK', description: '取り回しのよい精密ピストル', ammo: 12, damage: 27, rate: .27, reload: 1.05, color: 0xffd95e, sound: 'spark', model: 'pistol' },
-    { id: 'bubble-sidearm', name: 'BUBBLE SIDEARM', shortName: 'BUBBLE', description: '低速の爆発弾を発射', ammo: 5, damage: 44, rate: .7, reload: 1.35, color: 0xa77bff, sound: 'bubble', projectile: 'bubble', model: 'bubble' },
+    { id: 'spark-pistol', name: 'スパークピストル', shortName: 'スパーク', description: '取り回しのよい精密ピストル', ammo: 12, damage: 27, rate: .27, reload: 1.05, color: 0xffd95e, sound: 'spark', model: 'pistol' },
+    { id: 'bubble-sidearm', name: 'バブルサイドアーム', shortName: 'バブル', description: '低速の爆発弾を発射', ammo: 5, damage: 44, rate: .7, reload: 1.35, color: 0xa77bff, sound: 'bubble', projectile: 'bubble', model: 'bubble' },
   ],
   melee: [
-    { id: 'energy-baton', name: 'ENERGY BATON', shortName: 'BATON', description: '高威力の近接攻撃', ammo: Infinity, damage: 48, rate: .52, range: 2.8, color: 0x70f4ff, sound: 'melee', melee: true, model: 'baton' },
-    { id: 'boost-blade', name: 'BOOST BLADE', shortName: 'BLADE', description: '高速で振れる軽量ブレード', ammo: Infinity, damage: 35, rate: .32, range: 2.5, color: 0xff73c7, sound: 'melee', melee: true, model: 'blade' },
+    { id: 'energy-baton', name: 'エナジーバトン', shortName: 'バトン', description: '高威力の近接攻撃', ammo: Infinity, damage: 48, rate: .52, range: 2.8, color: 0x70f4ff, sound: 'melee', melee: true, model: 'baton' },
+    { id: 'boost-blade', name: 'ブーストブレード', shortName: 'ブレード', description: '高速で振れる軽量ブレード', ammo: Infinity, damage: 35, rate: .32, range: 2.5, color: 0xff73c7, sound: 'melee', melee: true, model: 'blade' },
   ],
   utility: [
-    { id: 'bounce-grenade', name: 'BOUNCE GRENADE', shortName: 'GRENADE', description: '跳ねて爆発する範囲攻撃', ammo: 2, damage: 62, rate: 1.1, color: 0x63ef9e, sound: 'grenade', projectile: 'grenade', model: 'grenade' },
-    { id: 'heal-capsule', name: 'HEAL CAPSULE', shortName: 'MEDKIT', description: 'HPを45回復する', ammo: 1, damage: 0, heal: 45, rate: 1.2, color: 0x50ed7b, sound: 'heal', utility: 'heal', model: 'medkit' },
+    { id: 'bounce-grenade', name: 'バウンドグレネード', shortName: 'グレネード', description: '跳ねて爆発する範囲攻撃', ammo: 2, damage: 62, rate: 1.1, color: 0x63ef9e, sound: 'grenade', projectile: 'grenade', model: 'grenade' },
+    { id: 'heal-capsule', name: '回復カプセル', shortName: '回復', description: 'HPを45回復する', ammo: 1, damage: 0, heal: 45, rate: 1.2, color: 0x50ed7b, sound: 'heal', utility: 'heal', model: 'medkit' },
   ],
 };
 
@@ -81,7 +81,7 @@ export class Weapon {
 
   get definition() { return this.definitions[this.index]; }
   get currentAmmo() { return Number.isFinite(this.ammo[this.index]) ? this.ammo[this.index] : '∞'; }
-  get cooldownLabel() { return this.cooldowns[this.index] > .08 && (this.definition.melee || this.definition.utility) ? 'COOLDOWN' : ''; }
+  get cooldownLabel() { return this.cooldowns[this.index] > .08 && (this.definition.melee || this.definition.utility) ? 'クールダウン' : ''; }
 
   setModifiers(modifiers = {}) {
     this.modifiers = {

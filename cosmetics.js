@@ -1,15 +1,15 @@
 export const COSMETICS = [
-  { id: 'finish-default', category: 'finish', name: 'PULSE BLUE', detail: 'Original weapon finish', cost: 0, color: null },
-  { id: 'finish-sunset', category: 'finish', name: 'SUNSET', detail: 'Hot pink weapon finish', cost: 2, color: 0xff5b9d },
-  { id: 'finish-gold', category: 'finish', name: 'CHAMPION GOLD', detail: 'Gold weapon finish', cost: 4, color: 0xffd24a },
-  { id: 'finish-zero', category: 'finish', name: 'ZERO SHIFT', detail: 'Circuit Champion weapon finish', cost: 0, color: 0xff4f91, exclusive: true },
-  { id: 'impact-default', category: 'impact', name: 'CLASSIC', detail: 'Weapon-matched impact color', cost: 0, color: null },
-  { id: 'impact-mint', category: 'impact', name: 'MINT BURST', detail: 'Mint tracers and impacts', cost: 2, color: 0x52ffc4 },
-  { id: 'impact-violet', category: 'impact', name: 'VOID BURST', detail: 'Violet tracers and impacts', cost: 3, color: 0xb57bff },
-  { id: 'title-default', category: 'title', name: 'FIRST BLAST', detail: 'Default result title', cost: 0, label: 'FIRST BLAST' },
-  { id: 'title-clutch', category: 'title', name: 'CLUTCH PLAYER', detail: 'Result-screen player title', cost: 3, label: 'CLUTCH PLAYER' },
-  { id: 'title-ace', category: 'title', name: 'ARENA ACE', detail: 'Result-screen player title', cost: 5, label: 'ARENA ACE' },
-  { id: 'title-circuit', category: 'title', name: 'CIRCUIT BREAKER', detail: 'Defeat all five Circuit rivals', cost: 0, label: 'CIRCUIT BREAKER', exclusive: true },
+  { id: 'finish-default', category: 'finish', name: 'パルスブルー', detail: '標準の武器カラー', cost: 0, color: null },
+  { id: 'finish-sunset', category: 'finish', name: 'サンセット', detail: '鮮やかなピンクの武器カラー', cost: 2, color: 0xff5b9d },
+  { id: 'finish-gold', category: 'finish', name: '王者のゴールド', detail: '輝くゴールドの武器カラー', cost: 4, color: 0xffd24a },
+  { id: 'finish-zero', category: 'finish', name: 'ゼロシフト', detail: 'サーキット王者の武器カラー', cost: 0, color: 0xff4f91, exclusive: true },
+  { id: 'impact-default', category: 'impact', name: 'クラシック', detail: '武器カラーに合った命中エフェクト', cost: 0, color: null },
+  { id: 'impact-mint', category: 'impact', name: 'ミントバースト', detail: 'ミント色の弾道と命中エフェクト', cost: 2, color: 0x52ffc4 },
+  { id: 'impact-violet', category: 'impact', name: 'ボイドバースト', detail: '紫色の弾道と命中エフェクト', cost: 3, color: 0xb57bff },
+  { id: 'title-default', category: 'title', name: 'ファーストブラスト', detail: '標準のリザルト称号', cost: 0, label: 'ファーストブラスト' },
+  { id: 'title-clutch', category: 'title', name: 'クラッチプレイヤー', detail: 'リザルト画面に表示する称号', cost: 3, label: 'クラッチプレイヤー' },
+  { id: 'title-ace', category: 'title', name: 'アリーナエース', detail: 'リザルト画面に表示する称号', cost: 5, label: 'アリーナエース' },
+  { id: 'title-circuit', category: 'title', name: 'サーキットブレイカー', detail: '5人のサーキットライバルを全員倒す', cost: 0, label: 'サーキットブレイカー', exclusive: true },
 ];
 
 const STORAGE_KEY = 'firstBlastCosmeticsV1';

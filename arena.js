@@ -5,9 +5,9 @@ export const PLAYER_SPAWN = new THREE.Vector3(0, 1.7, 16);
 export const RIVAL_SPAWN = new THREE.Vector3(0, 0, -16);
 
 export const ARENA_MAPS = {
-  crossline: { id: 'crossline', name: 'CROSSLINE', short: 'BALANCED', detail: 'Three readable routes with flexible cover' },
-  pocket: { id: 'pocket', name: 'POCKET', short: 'CLOSE', detail: 'Dense cover and fast close-range fights' },
-  longshot: { id: 'longshot', name: 'LONGSHOT', short: 'RANGE', detail: 'Long sightlines with sparse safe islands' },
+  crossline: { id: 'crossline', name: 'クロスライン', short: 'バランス', detail: '3つのルートと使いやすい遮蔽物がある標準アリーナ' },
+  pocket: { id: 'pocket', name: 'ポケット', short: '近距離', detail: '遮蔽物が多く、近距離戦が起きやすいアリーナ' },
+  longshot: { id: 'longshot', name: 'ロングショット', short: '遠距離', detail: '長い射線と少ない安全地帯を持つ遠距離アリーナ' },
 };
 
 export function loadArenaMap() {

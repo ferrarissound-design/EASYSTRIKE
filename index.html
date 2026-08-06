@@ -11,46 +11,46 @@
 
   <section id="start" class="panel">
     <div class="menu-card">
-      <p class="eyebrow">FAST 1V1 ARENA FPS</p>
+      <p class="eyebrow">1対1 高速アリーナFPS</p>
       <h1>FIRST <span>BLAST</span></h1>
       <p class="lead">一命を賭けたラウンドを、先に5本取れ。</p>
       <div class="choices" id="difficulty" aria-label="CPU難易度">
-        <button data-value="easy" class="selected">ROOKIE</button>
-        <button data-value="normal">RIVAL</button>
-        <button data-value="challenge">ACE</button>
+        <button data-value="easy" class="selected">ルーキー</button>
+        <button data-value="normal">ライバル</button>
+        <button data-value="challenge">エース</button>
       </div>
-      <p class="menu-label">RIVAL STYLE</p>
+      <p class="menu-label">ライバルの戦い方</p>
       <div class="choices style-choices" id="rivalStyle" aria-label="CPU戦闘スタイル">
-        <button data-value="brawler">RUSH</button>
-        <button data-value="tactician" class="selected">MIND</button>
-        <button data-value="marksman">AIM</button>
+        <button data-value="brawler">ラッシュ</button>
+        <button data-value="tactician" class="selected">マインド</button>
+        <button data-value="marksman">エイム</button>
       </div>
-      <small id="styleHint" class="style-hint">Strafes between cover and adapts</small>
-      <p class="menu-label">ARENA</p>
+      <small id="styleHint" class="style-hint">遮蔽物を使って左右に動き、状況に対応する</small>
+      <p class="menu-label">アリーナ</p>
       <div class="choices map-choices" id="arenaMap" aria-label="アリーナ選択">
-        <button data-value="crossline" class="selected">CROSS</button>
-        <button data-value="pocket">POCKET</button>
-        <button data-value="longshot">LONG</button>
+        <button data-value="crossline" class="selected">クロス</button>
+        <button data-value="pocket">ポケット</button>
+        <button data-value="longshot">ロング</button>
       </div>
-      <small id="mapHint" class="style-hint">Three readable routes with flexible cover</small>
+      <small id="mapHint" class="style-hint">3つのルートと使いやすい遮蔽物がある標準アリーナ</small>
       <div class="mode-actions">
-        <button id="duelButton" class="primary">DUELを開始</button>
+        <button id="duelButton" class="primary">デュエル開始</button>
         <button id="rangeButton" class="range-button">射撃場</button>
       </div>
-      <button id="circuitButton" class="circuit-button"><span>RIVAL CIRCUIT</span><small id="circuitRecord">BEST 0/5 · --:--</small></button>
+      <button id="circuitButton" class="circuit-button"><span>ライバルサーキット</span><small id="circuitRecord">最高 0/5 · --:--</small></button>
       <div class="menu-actions">
         <button id="loadoutButton">ロードアウト</button>
-        <button id="lockerButton">STYLE</button>
-        <button id="contractsButton">契約 <b id="menuKeys">0 KEY</b></button>
+        <button id="lockerButton">見た目</button>
+        <button id="contractsButton">契約 <b id="menuKeys">0 キー</b></button>
         <button id="settingsButton">設定</button>
       </div>
-      <small>WASD 移動 / Shift スプリント / C スライド / 右クリック ADS / Q 近接 / E Utility</small>
+      <small>WASD 移動 / Shift ダッシュ / C スライド / 右クリック 照準 / Q 近接 / E 道具</small>
     </div>
   </section>
 
   <section id="loadout" class="panel hidden">
     <div class="wide-card">
-      <p class="eyebrow">EQUIPMENT</p>
+      <p class="eyebrow">装備</p>
       <h2>ロードアウト</h2>
       <p class="panel-copy">各スロットから1つ選択。選択内容は自動保存されます。</p>
       <div id="loadoutGrid" class="loadout-grid"></div>
@@ -60,10 +60,10 @@
 
   <section id="locker" class="panel hidden">
     <div class="wide-card">
-      <p class="eyebrow">COSMETIC REWARDS</p>
-      <h2>STYLE LOCKER</h2>
-      <div class="key-total"><b id="lockerKeys">0</b> KEYS</div>
-      <p class="panel-copy">性能は変わりません。契約で得たKEYを外見だけに使います。</p>
+      <p class="eyebrow">見た目の報酬</p>
+      <h2>スタイルロッカー</h2>
+      <div class="key-total"><b id="lockerKeys">0</b> キー</div>
+      <p class="panel-copy">性能は変わりません。契約で得たキーを見た目だけに使います。</p>
       <div id="cosmeticGrid" class="cosmetic-grid"></div>
       <button class="primary close-panel" data-close="locker">戻る</button>
     </div>
@@ -71,9 +71,9 @@
 
   <section id="contracts" class="panel hidden">
     <div class="wide-card">
-      <p class="eyebrow">PROGRESSION</p>
+      <p class="eyebrow">進行状況</p>
       <h2>契約</h2>
-      <div class="key-total"><b id="contractKeys">0</b> KEYS</div>
+      <div class="key-total"><b id="contractKeys">0</b> キー</div>
       <div id="contractList" class="contract-list"></div>
       <button class="primary close-panel" data-close="contracts">戻る</button>
     </div>
@@ -81,7 +81,7 @@
 
   <section id="settings" class="panel hidden">
     <div class="wide-card">
-      <p class="eyebrow">OPTIONS</p>
+      <p class="eyebrow">オプション</p>
       <h2>設定</h2>
       <div class="settings-grid">
         <label>効果音 <input id="setting-sfx" type="range" min="0" max="100"></label>
@@ -109,11 +109,11 @@
     <header class="match-header">
       <div class="brand">FIRST <b>BLAST</b></div>
       <div class="scoreboard">
-        <div class="score-side blue"><span>YOU</span><b id="playerRounds">0</b><i id="playerRoundDots"></i></div>
-        <div class="round-label"><span id="modeLabel">DUEL</span><small id="roundNumber">ROUND 1</small></div>
-        <div class="score-side red"><b id="rivalRounds">0</b><span id="rivalName">RIVAL</span><i id="rivalRoundDots"></i></div>
+        <div class="score-side blue"><span>自分</span><b id="playerRounds">0</b><i id="playerRoundDots"></i></div>
+        <div class="round-label"><span id="modeLabel">デュエル</span><small id="roundNumber">ラウンド 1</small></div>
+        <div class="score-side red"><b id="rivalRounds">0</b><span id="rivalName">ライバル</span><i id="rivalRoundDots"></i></div>
       </div>
-      <button id="menuButton" class="hud-menu">MENU</button>
+      <button id="menuButton" class="hud-menu">メニュー</button>
     </header>
 
     <div id="roundBanner" class="round-banner hidden"><b></b><small></small></div>
@@ -130,24 +130,24 @@
       <small id="buffs"></small>
     </div>
     <div class="ammo">
-      <span id="weaponName">PULSE RIFLE</span>
+      <span id="weaponName">パルスライフル</span>
       <b id="ammo">24</b>
       <small id="reloadText"></small>
     </div>
     <div id="gearHud" class="gear-hud"></div>
     <div id="weaponSlots" class="weapon-slots"></div>
     <div id="damageNumbers"></div>
-    <div id="nametag" class="hidden"><b>RIVAL</b><i><s id="nametagBar"></s></i></div>
+    <div id="nametag" class="hidden"><b>ライバル</b><i><s id="nametagBar"></s></i></div>
     <ul id="killfeed"></ul>
   </div>
 
   <div id="mobile" class="hidden">
     <div id="stick"><i></i></div>
     <div id="look"></div>
-    <button id="fire">FIRE</button>
-    <button id="jump">JUMP</button>
-    <button id="crouch">SLIDE</button>
-    <button id="aim">AIM</button>
+    <button id="fire">射撃</button>
+    <button id="jump">ジャンプ</button>
+    <button id="crouch">スライド</button>
+    <button id="aim">照準</button>
     <button id="reload">R</button>
     <button id="quickMelee">Q</button>
     <button id="quickUtility">E</button>
@@ -155,16 +155,16 @@
 
   <section id="circuit" class="panel circuit-panel hidden">
     <div class="circuit-card">
-      <div class="circuit-topline"><span id="circuitStage">STAGE 1 / 5</span><b id="circuitKeys">+1 KEY</b></div>
+      <div class="circuit-topline"><span id="circuitStage">ステージ 1 / 5</span><b id="circuitKeys">+1 キー</b></div>
       <div id="circuitRoute" class="circuit-route"></div>
       <div id="rivalEmblem" class="rival-emblem">J</div>
-      <p class="eyebrow" id="circuitTitle">THE RUSHER</p>
-      <h2 id="circuitName">JET</h2>
+      <p class="eyebrow" id="circuitTitle">突撃のライバル</p>
+      <h2 id="circuitName">ジェット</h2>
       <blockquote id="circuitQuote"></blockquote>
-      <div class="circuit-tags"><span id="circuitWeapon">SCATTER</span><span id="circuitStyle">RUSHER</span><span id="circuitMap">POCKET</span></div>
-      <div class="circuit-intel"><b>RIVAL INTEL</b><p id="circuitWeakness"></p></div>
+      <div class="circuit-tags"><span id="circuitWeapon">散弾銃</span><span id="circuitStyle">突撃型</span><span id="circuitMap">ポケット</span></div>
+      <div class="circuit-intel"><b>ライバル情報</b><p id="circuitWeakness"></p></div>
       <div class="circuit-actions">
-        <button id="circuitLaunch" class="primary">CHALLENGE</button>
+        <button id="circuitLaunch" class="primary">挑戦する</button>
         <button id="circuitMenu" class="range-button">メニュー</button>
       </div>
     </div>
@@ -172,8 +172,8 @@
 
   <section id="gearSelect" class="panel gear-panel hidden">
     <div class="wide-card">
-      <p class="eyebrow" id="gearEyebrow">ROUND UPGRADE</p>
-      <h2>CHOOSE YOUR GEAR</h2>
+      <p class="eyebrow" id="gearEyebrow">ラウンド強化</p>
+      <h2>ギアを選ぼう</h2>
       <p>この試合中ずっと有効。最大3個まで獲得できます。</p>
       <div id="gearChoices" class="gear-choices"></div>
     </div>
@@ -181,9 +181,9 @@
 
   <section id="message" class="panel hidden">
     <div class="result-card">
-      <p class="eyebrow" id="resultEyebrow">MATCH COMPLETE</p>
+      <p class="eyebrow" id="resultEyebrow">試合終了</p>
       <p id="resultReward" class="result-reward"></p>
-      <h1 id="result">VICTORY</h1>
+      <h1 id="result">勝利</h1>
       <p id="resultDetail"></p>
       <div id="matchStats" class="match-stats"></div>
       <button id="again" class="primary">もう一度</button>
