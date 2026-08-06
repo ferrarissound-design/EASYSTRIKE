@@ -73,6 +73,7 @@ export class Weapon {
     this.muzzleWorld = new THREE.Vector3();
     this.models = [];
     this.projectiles = Array.from({ length: 10 }, () => this.createProjectile());
+    this.modifiers = { reloadSpeed: 1, fireRate: 1, damage: 1 };
     this.createHands();
     this.configureLoadout(loadout);
     this.layout();
@@ -81,6 +82,21 @@ export class Weapon {
   get definition() { return this.definitions[this.index]; }
   get currentAmmo() { return Number.isFinite(this.ammo[this.index]) ? this.ammo[this.index] : '∞'; }
   get cooldownLabel() { return this.cooldowns[this.index] > .08 && (this.definition.melee || this.definition.utility) ? 'COOLDOWN' : ''; }
+
+  setModifiers(modifiers = {}) {
+    this.modifiers = {
+      reloadSpeed: modifiers.reloadSpeed || 1,
+      fireRate: modifiers.fireRate || 1,
+      damage: modifiers.damage || 1,
+    };
+  }
+
+  setCosmetics(cosmetics = {}) {
+    this.cosmetics = { ...cosmetics };
+    if (this.loadout) this.configureLoadout(this.loadout);
+  }
+
+  effectColor(definition) { return this.cosmetics?.impactColor ?? definition.color; }
 
   configureLoadout(loadout) {
     this.loadout = { ...loadout };
@@ -114,7 +130,8 @@ export class Weapon {
 
   createModel(definition) {
     const group = new THREE.Group();
-    const shell = new THREE.MeshLambertMaterial({ color: definition.color, emissive: definition.color, emissiveIntensity: .2, flatShading: true });
+    const shellColor = this.cosmetics?.finishColor ?? definition.color;
+    const shell = new THREE.MeshLambertMaterial({ color: shellColor, emissive: shellColor, emissiveIntensity: .2, flatShading: true });
     const dark = new THREE.MeshLambertMaterial({ color: 0x303a60, emissive: 0x0b1025, flatShading: true });
     const part = (geometry, material, x, y, z, rotation) => {
       const mesh = new THREE.Mesh(geometry, material);
@@ -190,7 +207,7 @@ export class Weapon {
       if (token !== this.reloadToken) return;
       this.ammo[this.index] = definition.ammo;
       this.reloading = false;
-    }, (definition.reload || 1.2) * 1000);
+    }, (definition.reload || 1.2) * 1000 / this.modifiers.reloadSpeed);
   }
 
   animate(dt, aiming) {
@@ -230,12 +247,13 @@ export class Weapon {
 
   use(index, player, enemy, obstacles, handlers, quick) {
     const definition = this.definitions[index];
+    const effectColor = this.effectColor(definition);
     if (!definition || this.cooldowns[index] > 0) return;
     if (Number.isFinite(this.ammo[index]) && this.ammo[index] <= 0) {
       if (index === this.index) this.reload();
       return;
     }
-    this.cooldowns[index] = definition.rate;
+    this.cooldowns[index] = definition.rate / this.modifiers.fireRate;
     if (Number.isFinite(this.ammo[index])) this.ammo[index]--;
     handlers.onFire?.({ slot: definition.slot, utility: definition.slot === 'utility' });
     this.audio.play(definition.sound);
@@ -243,7 +261,7 @@ export class Weapon {
     const model = this.models[index];
     const muzzle = model.userData.muzzle || new THREE.Vector3(0, 0, -.5);
     model.localToWorld(this.muzzleWorld.copy(muzzle));
-    this.effects.burst(this.muzzleWorld, definition.color, quick ? 3 : 2, .09, .14);
+    this.effects.burst(this.muzzleWorld, effectColor, quick ? 3 : 2, .09, .14);
 
     if (definition.melee) this.fireMelee(definition, enemy, obstacles, handlers);
     else if (definition.utility === 'heal') this.useHeal(definition, player, handlers);
@@ -252,6 +270,7 @@ export class Weapon {
   }
 
   fireHitscan(definition, enemy, obstacles, handlers) {
+    const effectColor = this.effectColor(definition);
     const count = definition.pellets || 1;
     let total = 0;
     let hitPoint = null;
@@ -264,23 +283,23 @@ export class Weapon {
       const wallHit = this.ray.intersectObjects(obstacles, false)[0];
       const hitEnemy = enemyHit && (!wallHit || enemyHit.distance < wallHit.distance);
       const end = (hitEnemy ? enemyHit : wallHit)?.point || this.ray.ray.at(35, new THREE.Vector3());
-      this.effects.tracer(this.muzzleWorld.clone(), end, definition.color);
+      this.effects.tracer(this.muzzleWorld.clone(), end, effectColor);
       if (hitEnemy) {
         const isHead = enemyHit.object.userData.hitZone === 'head';
         const falloff = definition.pellets ? Math.max(.35, 1 - enemyHit.distance / 24) : 1;
-        total += definition.damage * falloff * (isHead ? 1.5 : 1);
+        total += definition.damage * this.modifiers.damage * falloff * (isHead ? 1.5 : 1);
         headshot ||= isHead;
         hitPoint = enemyHit.point;
       } else if (wallHit) {
-        this.effects.burst(wallHit.point, definition.color, 2, .08, .2);
+        this.effects.burst(wallHit.point, effectColor, 2, .08, .2);
       }
     }
     if (!total) return;
     const damage = Math.round(total);
     enemy.damage(damage);
-    this.effects.burst(hitPoint, headshot ? 0xffdf55 : definition.color, 5, .1, .3);
+    this.effects.burst(hitPoint, headshot ? 0xffdf55 : effectColor, 5, .1, .3);
     this.audio.play(headshot ? 'headshot' : 'hit');
-    handlers.onDamage?.(damage, enemy.labelPoint, { headshot, kill: enemy.hp <= 0, utility: false });
+    handlers.onDamage?.(damage, enemy.labelPoint, { headshot, kill: enemy.hp <= 0, utility: false, pushDirection: this.ray.ray.direction.clone() });
   }
 
   fireMelee(definition, enemy, obstacles, handlers) {
@@ -288,9 +307,10 @@ export class Weapon {
     const enemyHit = enemy.alive ? this.ray.intersectObject(enemy.group, true)[0] : null;
     const wallHit = this.ray.intersectObjects(obstacles, false)[0];
     if (!enemyHit || enemyHit.distance > definition.range || (wallHit && wallHit.distance < enemyHit.distance)) return;
-    enemy.damage(definition.damage);
-    this.effects.burst(enemyHit.point, definition.color, 7, .11, .3);
-    handlers.onDamage?.(definition.damage, enemy.labelPoint, { melee: true, kill: enemy.hp <= 0 });
+    const damage = Math.round(definition.damage * this.modifiers.damage);
+    enemy.damage(damage);
+    this.effects.burst(enemyHit.point, this.effectColor(definition), 7, .11, .3);
+    handlers.onDamage?.(damage, enemy.labelPoint, { melee: true, kill: enemy.hp <= 0, pushDirection: this.ray.ray.direction.clone() });
   }
 
   useHeal(definition, player, handlers) {
@@ -300,7 +320,7 @@ export class Weapon {
       this.ammo[3]++;
       return;
     }
-    this.effects.ring(player.position, definition.color);
+    this.effects.ring(player.position, this.effectColor(definition));
     handlers.onUtility?.('heal');
   }
 
@@ -312,7 +332,7 @@ export class Weapon {
     shot.definition = definition;
     shot.life = definition.projectile === 'grenade' ? 1.35 : 3.5;
     shot.gravity = definition.projectile === 'grenade' ? 12 : 0;
-    shot.mesh.material.color.set(definition.color);
+    shot.mesh.material.color.set(this.effectColor(definition));
     shot.mesh.scale.setScalar(definition.projectile === 'grenade' ? 1 : 1.35);
     shot.mesh.visible = true;
     shot.mesh.position.copy(this.muzzleWorld);
@@ -338,13 +358,13 @@ export class Weapon {
       if (!hitEnemy && !hitWall && shot.life > 0) continue;
       const radius = shot.kind === 'grenade' ? 5.2 : 4.2;
       const distance = enemy.alive ? shot.mesh.position.distanceTo(enemy.aimPoint) : Infinity;
-      const damage = Math.max(0, Math.round(shot.definition.damage * (1 - distance / radius)));
+      const damage = Math.max(0, Math.round(shot.definition.damage * this.modifiers.damage * (1 - distance / radius)));
       if (damage) {
         enemy.damage(damage);
-        handlers.onDamage?.(damage, enemy.labelPoint, { utility: shot.kind === 'grenade', kill: enemy.hp <= 0 });
+        handlers.onDamage?.(damage, enemy.labelPoint, { utility: shot.kind === 'grenade', kill: enemy.hp <= 0, pushDirection: shot.velocity.clone().normalize() });
         if (shot.kind === 'grenade') handlers.onUtility?.('hit');
       }
-      this.effects.burst(shot.mesh.position, shot.definition.color, shot.kind === 'grenade' ? 18 : 12, .22, .55);
+      this.effects.burst(shot.mesh.position, this.effectColor(shot.definition), shot.kind === 'grenade' ? 18 : 12, .22, .55);
       shot.active = false;
       shot.mesh.visible = false;
     }

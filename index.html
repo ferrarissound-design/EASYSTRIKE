@@ -19,12 +19,27 @@
         <button data-value="normal">RIVAL</button>
         <button data-value="challenge">ACE</button>
       </div>
+      <p class="menu-label">RIVAL STYLE</p>
+      <div class="choices style-choices" id="rivalStyle" aria-label="CPU戦闘スタイル">
+        <button data-value="brawler">RUSH</button>
+        <button data-value="tactician" class="selected">MIND</button>
+        <button data-value="marksman">AIM</button>
+      </div>
+      <small id="styleHint" class="style-hint">Strafes between cover and adapts</small>
+      <p class="menu-label">ARENA</p>
+      <div class="choices map-choices" id="arenaMap" aria-label="アリーナ選択">
+        <button data-value="crossline" class="selected">CROSS</button>
+        <button data-value="pocket">POCKET</button>
+        <button data-value="longshot">LONG</button>
+      </div>
+      <small id="mapHint" class="style-hint">Three readable routes with flexible cover</small>
       <div class="mode-actions">
         <button id="duelButton" class="primary">DUELを開始</button>
         <button id="rangeButton" class="range-button">射撃場</button>
       </div>
       <div class="menu-actions">
         <button id="loadoutButton">ロードアウト</button>
+        <button id="lockerButton">STYLE</button>
         <button id="contractsButton">契約 <b id="menuKeys">0 KEY</b></button>
         <button id="settingsButton">設定</button>
       </div>
@@ -39,6 +54,17 @@
       <p class="panel-copy">各スロットから1つ選択。選択内容は自動保存されます。</p>
       <div id="loadoutGrid" class="loadout-grid"></div>
       <button class="primary close-panel" data-close="loadout">完了</button>
+    </div>
+  </section>
+
+  <section id="locker" class="panel hidden">
+    <div class="wide-card">
+      <p class="eyebrow">COSMETIC REWARDS</p>
+      <h2>STYLE LOCKER</h2>
+      <div class="key-total"><b id="lockerKeys">0</b> KEYS</div>
+      <p class="panel-copy">性能は変わりません。契約で得たKEYを外見だけに使います。</p>
+      <div id="cosmeticGrid" class="cosmetic-grid"></div>
+      <button class="primary close-panel" data-close="locker">戻る</button>
     </div>
   </section>
 
@@ -80,14 +106,16 @@
       <div class="scoreboard">
         <div class="score-side blue"><span>YOU</span><b id="playerRounds">0</b><i id="playerRoundDots"></i></div>
         <div class="round-label"><span id="modeLabel">DUEL</span><small id="roundNumber">ROUND 1</small></div>
-        <div class="score-side red"><b id="rivalRounds">0</b><span>RIVAL</span><i id="rivalRoundDots"></i></div>
+        <div class="score-side red"><b id="rivalRounds">0</b><span id="rivalName">RIVAL</span><i id="rivalRoundDots"></i></div>
       </div>
       <button id="menuButton" class="hud-menu">MENU</button>
     </header>
 
     <div id="roundBanner" class="round-banner hidden"><b></b><small></small></div>
     <div id="crosshair"><i></i><i></i><em></em></div>
-    <div id="hitDirection" class="hit-direction hidden">▲</div>
+    <div id="combatCallout" class="combat-callout hidden"><b></b><small></small></div>
+    <div id="hitDirection" class="hit-direction hidden"><i></i></div>
+    <div id="damageFlash" class="damage-flash"></div>
 
     <div class="health">
       <label>HP <b id="hpText">100</b></label>
@@ -99,6 +127,7 @@
       <b id="ammo">24</b>
       <small id="reloadText"></small>
     </div>
+    <div id="gearHud" class="gear-hud"></div>
     <div id="weaponSlots" class="weapon-slots"></div>
     <div id="damageNumbers"></div>
     <div id="nametag" class="hidden"><b>RIVAL</b><i><s id="nametagBar"></s></i></div>
@@ -116,9 +145,19 @@
     <button id="quickUtility">E</button>
   </div>
 
+  <section id="gearSelect" class="panel gear-panel hidden">
+    <div class="wide-card">
+      <p class="eyebrow" id="gearEyebrow">ROUND UPGRADE</p>
+      <h2>CHOOSE YOUR GEAR</h2>
+      <p>この試合中ずっと有効。最大3個まで獲得できます。</p>
+      <div id="gearChoices" class="gear-choices"></div>
+    </div>
+  </section>
+
   <section id="message" class="panel hidden">
     <div class="result-card">
       <p class="eyebrow" id="resultEyebrow">MATCH COMPLETE</p>
+      <p id="resultReward" class="result-reward"></p>
       <h1 id="result">VICTORY</h1>
       <p id="resultDetail"></p>
       <div id="matchStats" class="match-stats"></div>
