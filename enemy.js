@@ -1,7 +1,13 @@
 import * as THREE from 'three';
 import { enemyWeaponFor } from './enemyWeapons.js';
 import { resolveEnemyMove } from './enemyMovement.js';
+import { MOBILE_TUNING } from './mobileTuning.js';
+import { bodyBlocked, ceilingAbove, climbableTop, supportBelow, STEP_HEIGHT, jumpReach } from './collision.js';
 const FIRE_RANGE=32; // 射撃を始める距離。アリーナの端から端まで届く程度。
+// 移動の当たり判定。プレイヤーと同じ重力・跳躍力を使い、遮蔽物の上へ登れるようにする。
+const BODY_HEIGHT=2,BODY_RADIUS=.7,MOVE_LIMIT=19;
+const GRAVITY=MOBILE_TUNING.movement.Gravity,JUMP_FORCE=MOBILE_TUNING.movement.JumpForce;
+const JUMP_REACH=jumpReach(JUMP_FORCE,GRAVITY);
 // 1スタッド＝この世界単位。本家R6の体格（全高5.25スタッド）が約2.0になり、プレイヤー
 // （身長1.8・目線1.7）とほぼ同じ背丈で並ぶ。体はスタッド単位で組み、外側のrigを一様に縮める。
 // 一様スケール限定。強調シェルはnormalMatrixで輪郭を出すので、軸ごとに違う倍率だと崩れる。
@@ -117,20 +123,77 @@ export class Enemy {
   }
   muzzleFlash(){this.muzzle.getWorldPosition(this.muzzleWorld);this.effects.burst(this.muzzleWorld,this.currentWeapon().color,3,.13,.16);this.recoil=1}
   canSeePlayer(player){const origin=new THREE.Vector3(this.group.position.x,this.group.position.y+HEAD_Y,this.group.position.z),target=player.position.clone(),direction=target.sub(origin),distance=direction.length();this.ray.set(origin,direction.normalize());const blocker=this.ray.intersectObjects(this.obstacles,false)[0];return !blocker||blocker.distance>distance}
-  safeMove(direction,distance){const result=resolveEnemyMove(this.group.position,direction,distance,position=>{const box=new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(position.x,1,position.z),new THREE.Vector3(1.4,2,1.4));return Math.abs(position.x)>19||Math.abs(position.z)>19||this.colliders.some(c=>c.intersectsBox(box))});this.group.position.set(result.position.x,result.position.y,result.position.z);return result.moved}
+  // 水平移動。接地中は STEP_HEIGHT ぶんの段差を歩いて越え、高さは resolveVertical に任せる。
+  safeMove(direction,distance){
+    const feet=this.group.position.y,from=feet+(this.airborne?0:STEP_HEIGHT);
+    const result=resolveEnemyMove(this.group.position,direction,distance,position=>
+      Math.abs(position.x)>MOVE_LIMIT||Math.abs(position.z)>MOVE_LIMIT
+      ||bodyBlocked(this.colliders,position.x,position.z,from,feet+BODY_HEIGHT,BODY_RADIUS));
+    this.group.position.set(result.position.x,feet,result.position.z);
+    return result;
+  }
+  // 落下と着地。プレイヤーと同じ規則なので、乗れる天面もそのまま共通。
+  resolveVertical(dt){
+    const {x,z}=this.group.position,feet=this.group.position.y;
+    this.velocityY-=GRAVITY*dt;
+    const next=feet+this.velocityY*dt;
+    if(this.velocityY>0){
+      const ceiling=ceilingAbove(this.colliders,x,z,feet+BODY_HEIGHT,BODY_RADIUS);
+      if(next+BODY_HEIGHT>ceiling){this.group.position.y=ceiling-BODY_HEIGHT;this.velocityY=0}
+      else this.group.position.y=next;
+      this.airborne=true;
+      return;
+    }
+    const support=supportBelow(this.colliders,x,z,feet+STEP_HEIGHT,BODY_RADIUS);
+    if(next<=support){this.group.position.y=support;this.velocityY=0;this.airborne=false}
+    else{this.group.position.y=next;this.airborne=true}
+  }
+  // 進路を塞がれたとき、その先が跳べる高さの足場ならジャンプして登る。
+  // 正面だけだと着地点が壁際に寄って弾かれるので、左右にもずらして試す。
+  tryClimb(direction){
+    if(this.airborne||!direction)return;
+    const lateral=new THREE.Vector3(-direction.z,0,direction.x);
+    for(const offset of [0,-.9,.9]){
+      const ahead=this.group.position.clone().addScaledVector(direction,BODY_RADIUS+.5).addScaledVector(lateral,offset);
+      if(!climbableTop(this.colliders,ahead.x,ahead.z,this.group.position.y,JUMP_REACH-.15,BODY_HEIGHT,BODY_RADIUS))continue;
+      // 横にずれた足場を見つけたときは、跳びながらそちらへ寄る。真上に跳ぶだけでは届かない。
+      if(offset)this.moveDirection=direction.clone().addScaledVector(lateral,offset*.8).normalize();
+      this.velocityY=JUMP_FORCE;
+      return;
+    }
+  }
+  // 三方向のステアリングでは抜けられない袋小路から脱出する。塞がれ続けたら
+  // 横→後ろと向きを変え、しばらくその向きを維持する。
+  escapeStall(dt,moved){
+    this.stuckTimer=moved?0:(this.stuckTimer||0)+dt;
+    if(this.stuckTimer<=.3||!this.moveDirection)return;
+    this.stuckTimer=0;this.stuckCount=(this.stuckCount||0)+1;
+    const direction=this.moveDirection;
+    this.moveDirection=this.stuckCount%2
+      ? new THREE.Vector3(-direction.z,0,direction.x).multiplyScalar(this.strafeDirection)
+      : direction.clone().negate();
+    this.thinkTimer=.4;
+  }
   fire(player){const weapon=this.currentWeapon();this.muzzle.getWorldPosition(this.muzzleWorld);const accuracy=Math.min(.97,Math.max(.25,this.config.accuracy+(this.style?.accuracyBonus||0))),spread=(1-accuracy)*.12*weapon.spread;for(let pellet=0;pellet<weapon.pellets;pellet++){const shot=this.shots.find(candidate=>!candidate.active);if(!shot)break;const direction=player.position.clone().sub(this.muzzleWorld).normalize();direction.x+=(Math.random()-.5)*spread;direction.y+=(Math.random()-.5)*spread;direction.z+=(Math.random()-.5)*spread;direction.normalize();shot.active=true;shot.life=2.4;shot.damage=Math.max(1,Math.round(this.config.attack*weapon.damageScale));shot.color=weapon.color;shot.mesh.material.color.setHex(weapon.color);shot.mesh.scale.setScalar(weapon.size);shot.mesh.visible=true;shot.mesh.position.copy(this.muzzleWorld);shot.velocity.copy(direction).multiplyScalar(weapon.speed);this.effects.tracer(this.muzzleWorld.clone(),this.muzzleWorld.clone().addScaledVector(direction,2.2),weapon.color)}}
   updateShots(dt,player,onShot){for(const shot of this.shots){if(!shot.active)continue;shot.life-=dt;const previous=shot.mesh.position.clone(),step=shot.velocity.clone().multiplyScalar(dt),distance=step.length(),direction=step.clone().normalize();this.ray.set(previous,direction);const blocker=this.ray.intersectObjects(this.obstacles,false)[0];if(blocker&&blocker.distance<=distance){this.effects.burst(blocker.point,shot.color,2,.07,.16);shot.active=false;shot.mesh.visible=false;continue}shot.mesh.position.add(step);const segment=new THREE.Line3(previous,shot.mesh.position),closest=segment.closestPointToPoint(player.position,true,new THREE.Vector3());if(closest.distanceTo(player.position)<.58){onShot(shot.damage,previous);shot.active=false;shot.mesh.visible=false;continue}if(shot.life<=0){shot.active=false;shot.mesh.visible=false}}}
   clearShots(){this.shots?.forEach(shot=>{shot.active=false;shot.mesh.visible=false})}
   displace(direction,distance=.55){if(!this.alive)return;const flat=direction.clone().setY(0);if(flat.lengthSq()>.001)this.safeMove(flat.normalize(),distance)}
-  update(dt,player,onShot){this.animate(dt);this.updateShots(dt,player,onShot);if(!this.alive)return;this.thinkTimer-=dt;this.shotTimer-=dt;this.group.position.y=Math.max(0,this.group.position.y-8*dt);const toPlayer=player.position.clone().sub(this.group.position),distance=toPlayer.length(),visible=this.canSeePlayer(player);this.group.lookAt(player.position.x,this.group.position.y,player.position.z);
+  update(dt,player,onShot){this.animate(dt);this.updateShots(dt,player,onShot);if(!this.alive)return;this.thinkTimer-=dt;this.shotTimer-=dt;const toPlayer=player.position.clone().sub(this.group.position),distance=toPlayer.length(),visible=this.canSeePlayer(player);this.group.lookAt(player.position.x,this.group.position.y,player.position.z);
     this.revealTimer=Math.max(0,(this.revealTimer||0)-dt);this.visibleToPlayer=visible||this.revealTimer>0; // HUNTERギア中は遮蔽物越しでも短時間追跡する。
     this.seenTime=visible?this.seenTime+dt:0;                        // プレイヤーを見続けた実時間。これが反応時間を超えると命中させられる。
-    if(this.moveDirection){const before=this.group.position.clone();this.safeMove(this.moveDirection,this.moveSpeed*dt);this.moving=before.distanceToSquared(this.group.position)>1e-6}
-    if(this.thinkTimer>0)return;this.thinkTimer=.16;                 // 進む向きと射撃の判断だけを一定間隔で行い、移動自体は毎フレーム続ける。
-    const baseStyle=this.style||{preferredMin:7,preferredMax:12,speed:1,burst:3,burstPause:.85,reactionScale:1};let style=baseStyle;if(baseStyle.adaptive){const ratio=this.hp/this.maxHp;style=ratio>.66?{preferredMin:13,preferredMax:22,speed:.94,burst:1,burstPause:.62,reactionScale:.92}:ratio>.33?{preferredMin:7,preferredMax:12,speed:1.05,burst:3,burstPause:.7,reactionScale:.86}:{preferredMin:3.5,preferredMax:8,speed:1.2,burst:1,burstPause:.45,reactionScale:.72}}const forward=toPlayer.setY(0).normalize(),direction=forward.clone();let goal='fight';
-    if(this.hp<=this.maxHp*.3){direction.negate();goal='retreat'}else if(distance>style.preferredMax)goal='approach';else if(distance<style.preferredMin){direction.negate();goal='retreat'}else{direction.set(-forward.z,0,forward.x).multiplyScalar(this.strafeDirection)}if(!visible&&goal==='fight'){direction.copy(forward);goal='approach'}
+    // プレイヤーが自分より高い場所にいる間だけ、前が塞がったら登る。平地では跳ねない。
+    // 跳んでいる最中は判定を保持する。空中で横に散ると、狙った足場から落ちてしまう。
+    this.climbing=player.feetY>this.group.position.y+STEP_HEIGHT+.3||(this.airborne&&this.climbing);
+    if(this.moveDirection){const before=this.group.position.clone();const move=this.safeMove(this.moveDirection,this.moveSpeed*dt);this.moving=before.distanceToSquared(this.group.position)>1e-6;if(move.deflected&&this.climbing)this.tryClimb(this.moveDirection);this.escapeStall(dt,move.moved)}
+    this.resolveVertical(dt);
+    if(this.thinkTimer>0)return;this.thinkTimer=.16;                // 進む向きと射撃の判断だけを一定間隔で行い、移動自体は毎フレーム続ける。
+    const baseStyle=this.style||{preferredMin:7,preferredMax:12,speed:1,burst:3,burstPause:.85,reactionScale:1};let style=baseStyle;if(baseStyle.adaptive){const ratio=this.hp/this.maxHp;style=ratio>.66?{preferredMin:13,preferredMax:22,speed:.94,burst:1,burstPause:.62,reactionScale:.92}:ratio>.33?{preferredMin:7,preferredMax:12,speed:1.05,burst:3,burstPause:.7,reactionScale:.86}:{preferredMin:3.5,preferredMax:8,speed:1.2,burst:1,burstPause:.45,reactionScale:.72}}// 間合いは水平距離で測る。高低差を足すと、真上に登られただけで「近すぎる」と誤判定して下がってしまう。
+    const flatDistance=Math.hypot(toPlayer.x,toPlayer.z),forward=toPlayer.setY(0).normalize(),direction=forward.clone();let goal='fight',lowHp=this.hp<=this.maxHp*.3;
+    if(lowHp){direction.negate();goal='retreat'}else if(flatDistance>style.preferredMax)goal='approach';else if(flatDistance<style.preferredMin){direction.negate();goal='retreat'}else{direction.set(-forward.z,0,forward.x).multiplyScalar(this.strafeDirection)}if(!visible&&goal==='fight'){direction.copy(forward);goal='approach'}
+    // 高所に登られたら、横に回り込まず正面から詰めて登り口を探す。
+    if(this.climbing&&!lowHp){direction.copy(forward);goal='approach'}
     this.moveDirection=direction;this.moveSpeed=this.config.enemySpeed*style.speed*(goal==='retreat'?1.2:1);
-    if(Math.random()<this.config.jump*.16&&this.group.position.y===0)this.group.position.y=.5;
+    if(Math.random()<this.config.jump*.16&&!this.airborne)this.velocityY=JUMP_FORCE*.62;   // 回避の小ジャンプ。
     if(visible&&distance<FIRE_RANGE&&this.shotTimer<=0&&this.seenTime>this.config.reaction*style.reactionScale){const weapon=this.currentWeapon(),burst=weapon.burst||style.burst;if(this.burstShots>=burst){this.shotTimer=weapon.pause||style.burstPause;this.burstShots=0;this.strafeDirection*=-1;return}this.shotTimer=weapon.rate+this.config.reaction*.08;this.burstShots++;this.muzzleFlash();this.fire(player)}}
   flash(hit){this.highlight.uniforms.glowColor.value.set(hit?0xffffff:0xff5545);this.highlight.uniforms.rimStrength.value=hit?1.7:.95;this.highlight.uniforms.fill.value=hit?.35:.07}
   damage(amount){if(!this.alive)return;this.hp-=amount;const token=++this.flashToken;this.tint(0x88ffff);this.flash(true);this.setFace('hurt');setTimeout(()=>{if(this.alive&&token===this.flashToken){this.untint();this.flash(false);this.setFace('normal')}},160);if(this.hp<=0)this.die()}
@@ -143,5 +206,5 @@ export class Enemy {
     this.parts.forEach(part=>{part.mesh.position.copy(part.rest);part.mesh.rotation.set(0,0,0)});this.gun.rotation.x=-AIM_ARM;this.exploding=0;
     this.upper.position.y=0;this.legs.forEach(leg=>leg.rotation.set(0,0,0));this.arms[0].rotation.set(0,0,0);this.arms[1].rotation.set(AIM_ARM,0,0);
     this.untint();this.flash(false);this.setFace('normal');this.flashToken++;
-    this.hp=this.maxHp||100;this.alive=true;this.recoil=0;this.moving=false;this.animTime=0;this.moveDirection=null;this.moveSpeed=0;this.thinkTimer=.25;this.shotTimer=Math.max(.55,(this.config?.reaction??.6)+.35);this.seenTime=0;this.burstShots=0;this.visibleToPlayer=false;this.revealTimer=0;this.strafeDirection=Math.random()<.5?-1:1;this.effects?.ring(safe,0x7eeeff)}
+    this.hp=this.maxHp||100;this.alive=true;this.recoil=0;this.moving=false;this.animTime=0;this.moveDirection=null;this.moveSpeed=0;this.velocityY=0;this.airborne=false;this.stuckTimer=0;this.stuckCount=0;this.climbing=false;this.thinkTimer=.25;this.shotTimer=Math.max(.55,(this.config?.reaction??.6)+.35);this.seenTime=0;this.burstShots=0;this.visibleToPlayer=false;this.revealTimer=0;this.strafeDirection=Math.random()<.5?-1:1;this.effects?.ring(safe,0x7eeeff)}
 }
