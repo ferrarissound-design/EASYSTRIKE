@@ -13,6 +13,7 @@
   --fire-bottom: 24px;
 }
 
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 html, body { width: 100%; height: 100%; }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
 body { margin: 0; overflow: hidden; background: #0b1227; }
@@ -24,7 +25,7 @@ button:focus-visible { outline: 3px solid #75efff; outline-offset: 3px; }
 .hidden { display: none !important; }
 
 .panel { position: fixed; z-index: 30; inset: 0; display: flex; align-items: flex-start; justify-content: center; padding: calc(22px + env(safe-area-inset-top)) 22px calc(22px + env(safe-area-inset-bottom)); background: radial-gradient(circle at 50% 30%, #284378f2, #090f22fa 72%); overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
-.panel > * { flex: 0 0 auto; margin-block: auto; }
+.panel > * { flex: 0 1 auto; min-width: 0; max-width: 100%; margin-block: auto; }
 .panel * { touch-action: pan-y; }
 .panel input[type="range"] { touch-action: pan-y; }
 .menu-card, .wide-card, .result-card { width: min(720px, 100%); border: 1px solid #ffffff2e; border-radius: 28px; padding: clamp(24px, 5vw, 52px); text-align: center; background: linear-gradient(145deg, #17284ae8, #101a34f2); box-shadow: 0 30px 90px #0008, inset 0 1px #fff2; backdrop-filter: blur(18px); }
@@ -36,7 +37,7 @@ button:focus-visible { outline: 3px solid #75efff; outline-offset: 3px; }
 .lead, .panel-copy { color: #d9e4ff; font-weight: 650; }
 .panel small { display: block; margin-top: 18px; color: #bdc9e5; }
 
-.choices { display: flex; justify-content: center; gap: 8px; margin: 24px 0 14px; }
+.choices { display: flex; justify-content: center; flex-wrap: wrap; min-width: 0; max-width: 100%; gap: 8px; margin: 24px 0 14px; }
 .choices button, .menu-actions button, .range-button { padding: 11px 16px; border-radius: 12px; background: #ffffff14; border: 1px solid #ffffff26; }
 .choices .selected { color: #071a31; background: #72e9ff; box-shadow: 0 0 0 3px #fff; }
 .menu-label { margin: 18px 0 -13px; color: #91a6ca; font-size: 9px; font-weight: 1000; letter-spacing: .22em; }
