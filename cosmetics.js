@@ -2,12 +2,14 @@ export const COSMETICS = [
   { id: 'finish-default', category: 'finish', name: 'PULSE BLUE', detail: 'Original weapon finish', cost: 0, color: null },
   { id: 'finish-sunset', category: 'finish', name: 'SUNSET', detail: 'Hot pink weapon finish', cost: 2, color: 0xff5b9d },
   { id: 'finish-gold', category: 'finish', name: 'CHAMPION GOLD', detail: 'Gold weapon finish', cost: 4, color: 0xffd24a },
+  { id: 'finish-zero', category: 'finish', name: 'ZERO SHIFT', detail: 'Circuit Champion weapon finish', cost: 0, color: 0xff4f91, exclusive: true },
   { id: 'impact-default', category: 'impact', name: 'CLASSIC', detail: 'Weapon-matched impact color', cost: 0, color: null },
   { id: 'impact-mint', category: 'impact', name: 'MINT BURST', detail: 'Mint tracers and impacts', cost: 2, color: 0x52ffc4 },
   { id: 'impact-violet', category: 'impact', name: 'VOID BURST', detail: 'Violet tracers and impacts', cost: 3, color: 0xb57bff },
   { id: 'title-default', category: 'title', name: 'FIRST BLAST', detail: 'Default result title', cost: 0, label: 'FIRST BLAST' },
   { id: 'title-clutch', category: 'title', name: 'CLUTCH PLAYER', detail: 'Result-screen player title', cost: 3, label: 'CLUTCH PLAYER' },
   { id: 'title-ace', category: 'title', name: 'ARENA ACE', detail: 'Result-screen player title', cost: 5, label: 'ARENA ACE' },
+  { id: 'title-circuit', category: 'title', name: 'CIRCUIT BREAKER', detail: 'Defeat all five Circuit rivals', cost: 0, label: 'CIRCUIT BREAKER', exclusive: true },
 ];
 
 const STORAGE_KEY = 'firstBlastCosmeticsV1';
@@ -33,6 +35,7 @@ export class CosmeticLocker {
   unlockAndSelect(id, wallet) {
     const item = COSMETICS.find(candidate => candidate.id === id);
     if (!item) return { ok: false, reason: 'missing' };
+    if (item.exclusive && !this.isOwned(id)) return { ok: false, reason: 'exclusive', item };
     if (!this.isOwned(id)) {
       if (!wallet.spend(item.cost)) return { ok: false, reason: 'keys', item };
       this.data.owned.push(id);
@@ -40,6 +43,14 @@ export class CosmeticLocker {
     this.data.selected[item.category] = id;
     this.save();
     return { ok: true, item };
+  }
+
+  grant(id) {
+    const item = COSMETICS.find(candidate => candidate.id === id);
+    if (!item) return null;
+    if (!this.isOwned(id)) this.data.owned.push(id);
+    this.save();
+    return item;
   }
 
   loadout() {

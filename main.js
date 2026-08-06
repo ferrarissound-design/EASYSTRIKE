@@ -13,6 +13,7 @@ import { GameAudio } from './audio.js';
 import { GearDraft } from './gears.js';
 import { RIVAL_STYLES, loadRivalStyle } from './rivalStyles.js';
 import { CosmeticLocker, COSMETICS } from './cosmetics.js';
+import { CIRCUIT_RIVALS, CircuitProgress } from './circuit.js';
 
 const settings = loadSettings();
 applySettings(settings);
@@ -42,6 +43,7 @@ const ui = new UI(camera);
 const contracts = new ContractTracker();
 const locker = new CosmeticLocker();
 const gearDraft = new GearDraft();
+const circuitProgress = new CircuitProgress();
 const clock = new THREE.Clock();
 scene.add(camera);
 weapon.setCosmetics(locker.loadout());
@@ -50,8 +52,14 @@ let difficultyKey = loadDifficulty();
 let config = DIFFICULTIES[difficultyKey];
 let rivalStyleKey = loadRivalStyle();
 let rivalStyle = RIVAL_STYLES[rivalStyleKey];
+let activeStyle = rivalStyle;
+let activeRival = null;
 let state = 'menu';
 let mode = 'duel';
+let roundTarget = 5;
+let circuitIndex = 0;
+let circuitRunKeys = 0;
+let lastMatchWon = false;
 let roundNumber = 1;
 let playerRounds = 0;
 let rivalRounds = 0;
@@ -111,6 +119,75 @@ function selectArenaMap(value) {
 
 document.querySelectorAll('#arenaMap button').forEach(button => { button.onclick = () => selectArenaMap(button.dataset.value); });
 selectArenaMap(arenaMapKey);
+
+function renderCircuitRecord() {
+  document.getElementById('circuitRecord').textContent = `BEST ${circuitProgress.data.bestStage}/5 · ${circuitProgress.formatTime()}`;
+}
+
+function startCircuit() {
+  audio.unlock();
+  mode = 'circuit';
+  circuitIndex = 0;
+  circuitRunKeys = 0;
+  circuitProgress.start();
+  showCircuitCard();
+}
+
+function showCircuitCard() {
+  roundToken++;
+  state = 'circuit';
+  mode = 'circuit';
+  activeRival = CIRCUIT_RIVALS[circuitIndex];
+  activeStyle = RIVAL_STYLES[activeRival.style];
+  ensureArena(activeRival.map);
+  document.exitPointerLock?.();
+  document.getElementById('hud').classList.add('hidden');
+  ['start', 'loadout', 'locker', 'contracts', 'settings', 'message', 'gearSelect'].forEach(id => setPanel(id, false));
+  setPanel('circuit', true);
+  const card = document.querySelector('.circuit-card');
+  card.style.setProperty('--rival-color', activeRival.color);
+  document.getElementById('circuitStage').textContent = `STAGE ${circuitIndex + 1} / ${CIRCUIT_RIVALS.length}`;
+  document.getElementById('circuitKeys').textContent = `+${activeRival.reward} KEY · FIRST TO ${activeRival.firstTo}`;
+  document.getElementById('circuitName').textContent = activeRival.name;
+  document.getElementById('circuitTitle').textContent = activeRival.title;
+  document.getElementById('circuitQuote').textContent = `“${activeRival.quote}”`;
+  document.getElementById('circuitWeapon').textContent = activeRival.weapon === 'adaptive' ? 'SHIFT ARSENAL' : activeRival.weapon.toUpperCase();
+  document.getElementById('circuitStyle').textContent = activeStyle.label;
+  document.getElementById('circuitMap').textContent = ARENA_MAPS[activeRival.map].name;
+  document.getElementById('circuitWeakness').textContent = activeRival.weakness;
+  document.getElementById('rivalEmblem').textContent = activeRival.name[0];
+  document.getElementById('circuitLaunch').textContent = circuitIndex === CIRCUIT_RIVALS.length - 1 ? 'FACE THE CHAMPION' : 'CHALLENGE';
+  const route = document.getElementById('circuitRoute');
+  route.replaceChildren(...CIRCUIT_RIVALS.map((_, index) => {
+    const node = document.createElement('i');
+    node.className = index < circuitIndex ? 'done' : index === circuitIndex ? 'active' : '';
+    return node;
+  }));
+  config = { playerHp: 100, ...activeRival.config };
+  enemy.configure(config, activeStyle, activeRival.weapon);
+  enemy.respawn(RIVAL_SPAWN);
+}
+
+function launchCircuitMatch() {
+  if (state !== 'circuit') return;
+  stats = freshStats();
+  pendingRewards = [];
+  playerRounds = rivalRounds = 0;
+  roundNumber = 1;
+  roundTarget = activeRival.firstTo;
+  gearDraft.reset();
+  applyGearModifiers();
+  player.configure(config.playerHp);
+  enemy.configure(config, activeStyle, activeRival.weapon);
+  enemy.gameEnded = false;
+  ui.setRivalStyle({ label: activeRival.name });
+  preparePlayView();
+  beginRound();
+}
+
+document.getElementById('circuitButton').onclick = startCircuit;
+document.getElementById('circuitLaunch').onclick = launchCircuitMatch;
+document.getElementById('circuitMenu').onclick = () => showMenu();
 
 function switchWeapon(index) {
   if (!['playing', 'range'].includes(state)) return;
@@ -180,7 +257,8 @@ function renderCosmetics() {
       const button = document.createElement('button');
       button.dataset.cosmetic = item.id;
       button.className = `cosmetic-item ${selected ? 'selected' : ''} ${owned ? '' : 'locked'}`;
-      button.innerHTML = `<b>${item.name}</b><small>${item.detail}</small><em>${selected ? 'EQUIPPED' : owned ? 'OWNED' : `${item.cost} KEY`}</em>`;
+      button.disabled = !!item.exclusive && !owned;
+      button.innerHTML = `<b>${item.name}</b><small>${item.detail}</small><em>${selected ? 'EQUIPPED' : owned ? 'OWNED' : item.exclusive ? 'CIRCUIT REWARD' : `${item.cost} KEY`}</em>`;
       button.onclick = () => {
         const result = locker.unlockAndSelect(item.id, contracts);
         if (!result.ok) {
@@ -223,7 +301,7 @@ document.querySelectorAll('.close-panel').forEach(button => {
 });
 
 function preparePlayView() {
-  ['start', 'loadout', 'locker', 'contracts', 'settings', 'message'].forEach(id => setPanel(id, false));
+  ['start', 'loadout', 'locker', 'contracts', 'settings', 'message', 'circuit'].forEach(id => setPanel(id, false));
   document.getElementById('hud').classList.remove('hidden');
   configureHudSlots();
   if (!controls.mobile) renderer.domElement.requestPointerLock();
@@ -233,6 +311,10 @@ function startDuel() {
   audio.unlock();
   ensureArena(arenaMapKey);
   mode = 'duel';
+  activeRival = null;
+  activeStyle = rivalStyle;
+  roundTarget = 5;
+  document.getElementById('again').textContent = 'もう一度';
   stats = freshStats();
   pendingRewards = [];
   playerRounds = rivalRounds = 0;
@@ -241,7 +323,8 @@ function startDuel() {
   roundNumber = 1;
   config = DIFFICULTIES[difficultyKey];
   player.configure(config.playerHp);
-  enemy.configure(config, rivalStyle);
+  enemy.configure(config, activeStyle, 'pulse');
+  ui.setRivalStyle(activeStyle);
   enemy.gameEnded = false;
   preparePlayView();
   beginRound();
@@ -251,6 +334,9 @@ function startRange() {
   audio.unlock();
   ensureArena('crossline');
   mode = 'range';
+  activeRival = null;
+  activeStyle = rivalStyle;
+  roundTarget = 5;
   state = 'range';
   roundToken++;
   rangeTarget = 0;
@@ -260,7 +346,7 @@ function startRange() {
   applyGearModifiers();
   player.configure(100);
   player.respawn(new THREE.Vector3(14, 1.7, 16), 0);
-  enemy.configure({ ...DIFFICULTIES.easy, enemyHp: 100, enemySpeed: 0, reaction: 99, attack: 0 });
+  enemy.configure({ ...DIFFICULTIES.easy, enemyHp: 100, enemySpeed: 0, reaction: 99, attack: 0 }, activeStyle, 'pulse');
   enemy.gameEnded = false;
   enemy.respawn(new THREE.Vector3(14, 0, 4));
   weapon.refillAll();
@@ -279,16 +365,17 @@ async function beginRound() {
   const token = ++roundToken;
   state = 'countdown';
   enemy.gameEnded = false;
-  enemy.configure(config, rivalStyle);
+  enemy.configure(config, activeStyle, activeRival?.weapon || 'pulse');
   player.respawn(PLAYER_SPAWN, 0);
   enemy.respawn(RIVAL_SPAWN);
   weapon.refillAll();
   controls.clearActions();
-  ui.setRounds(playerRounds, rivalRounds, roundNumber, 'DUEL');
+  const matchLabel = mode === 'circuit' ? 'CIRCUIT' : 'DUEL';
+  ui.setRounds(playerRounds, rivalRounds, roundNumber, matchLabel, roundTarget);
   ui.update(player, weapon, enemy);
   effects.ring(PLAYER_SPAWN, 0x64c7ff);
   effects.ring(RIVAL_SPAWN, 0xff5b82);
-  ui.showBanner(`ROUND ${roundNumber}`, 'FIRST TO 5');
+  ui.showBanner(`ROUND ${roundNumber}`, `FIRST TO ${roundTarget}`);
   await delay(650);
   for (const count of ['3', '2', '1']) {
     if (token !== roundToken || state !== 'countdown') return;
@@ -317,10 +404,10 @@ function finishRound(playerWon) {
     rivalRounds++;
     ui.feed('RIVAL ▸ YOU');
   }
-  ui.setRounds(playerRounds, rivalRounds, roundNumber, 'DUEL');
+  ui.setRounds(playerRounds, rivalRounds, roundNumber, mode === 'circuit' ? 'CIRCUIT' : 'DUEL', roundTarget);
   ui.showBanner(playerWon ? 'ROUND WON' : 'ROUND LOST', `${playerRounds} — ${rivalRounds}`);
-  if (playerRounds >= 5 || rivalRounds >= 5) {
-    setTimeout(() => finishMatch(playerRounds >= 5), 1200);
+  if (playerRounds >= roundTarget || rivalRounds >= roundTarget) {
+    setTimeout(() => finishMatch(playerRounds >= roundTarget), 1200);
     return;
   }
   roundNumber++;
@@ -364,9 +451,14 @@ function showGearDraft(clutch = false) {
 function finishMatch(win) {
   if (state !== 'roundEnd') return;
   state = 'matchEnd';
+  lastMatchWon = win;
   enemy.gameEnded = true;
   enemy.clearShots();
   weapon.clearProjectiles();
+  if (mode === 'circuit') {
+    finishCircuitMatch(win);
+    return;
+  }
   if (win) {
     record('matchesWon');
     contracts.earn(1);
@@ -375,6 +467,42 @@ function finishMatch(win) {
   const earnedKeys = (win ? 1 : 0) + pendingRewards.reduce((sum, contract) => sum + contract.reward, 0);
   const rewardText = earnedKeys ? `${earnedKeys} KEY獲得` : '';
   ui.end(win, playerRounds, rivalRounds, stats, rewardText, locker.loadout().title);
+}
+
+function finishCircuitMatch(win) {
+  const contractKeys = pendingRewards.reduce((sum, contract) => sum + contract.reward, 0);
+  if (!win) {
+    audio.play('defeat');
+    document.getElementById('again').textContent = 'RETRY STAGE';
+    ui.end(false, playerRounds, rivalRounds, stats, '', `${activeRival.name} STOPPED THE RUN`, activeRival.name);
+    return;
+  }
+
+  circuitProgress.recordWin(circuitIndex);
+  contracts.earn(activeRival.reward);
+  circuitRunKeys += activeRival.reward + contractKeys;
+  renderContracts();
+  const finalStage = circuitIndex === CIRCUIT_RIVALS.length - 1;
+  if (!finalStage) {
+    state = 'circuitTransition';
+    audio.play('victory');
+    ui.showBanner('RIVAL DEFEATED', `${activeRival.name} · +${activeRival.reward + contractKeys} KEY`, 900);
+    setTimeout(() => {
+      if (state !== 'circuitTransition') return;
+      circuitIndex++;
+      showCircuitCard();
+    }, 1050);
+    return;
+  }
+
+  const elapsed = circuitProgress.complete();
+  locker.grant('finish-zero');
+  locker.grant('title-circuit');
+  weapon.setCosmetics(locker.loadout());
+  renderCircuitRecord();
+  audio.play('victory');
+  document.getElementById('again').textContent = 'RUN AGAIN';
+  ui.end(true, playerRounds, rivalRounds, stats, `${circuitRunKeys} KEY · ${circuitProgress.formatTime(elapsed)}`, 'CIRCUIT CHAMPION', activeRival.name);
 }
 
 function showMenu() {
@@ -387,15 +515,24 @@ function showMenu() {
   ui.hideBanner();
   document.exitPointerLock?.();
   document.getElementById('hud').classList.add('hidden');
-  ['message', 'loadout', 'locker', 'contracts', 'settings', 'gearSelect'].forEach(id => setPanel(id, false));
+  ['message', 'loadout', 'locker', 'contracts', 'settings', 'gearSelect', 'circuit'].forEach(id => setPanel(id, false));
   setPanel('start', true);
+  activeRival = null;
+  activeStyle = rivalStyle;
+  ui.setRivalStyle(rivalStyle);
+  ensureArena(arenaMapKey);
   enemy.respawn(RIVAL_SPAWN);
   renderContracts();
+  renderCircuitRecord();
 }
 
 document.getElementById('menuButton').onclick = showMenu;
 document.getElementById('resultMenu').onclick = showMenu;
-document.getElementById('again').onclick = startDuel;
+document.getElementById('again').onclick = () => {
+  if (mode !== 'circuit') { startDuel(); return; }
+  if (lastMatchWon && circuitIndex === CIRCUIT_RIVALS.length - 1) startCircuit();
+  else showCircuitCard();
+};
 
 enemy.onDeath = () => {
   if (state === 'playing') {
@@ -470,9 +607,10 @@ function loop() {
 
 renderLoadout();
 renderContracts();
+renderCircuitRecord();
 configureHudSlots();
-enemy.configure(config, rivalStyle);
-ui.setRounds(0, 0, 1, 'DUEL');
+enemy.configure(config, rivalStyle, 'pulse');
+ui.setRounds(0, 0, 1, 'DUEL', 5);
 loop();
 
 addEventListener('resize', () => {

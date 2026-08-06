@@ -11,6 +11,10 @@ export const RIVAL_STYLES = {
     id: 'marksman', name: 'AIM', label: 'MARKSMAN', detail: 'Keeps range and fires precise taps',
     preferredMin: 13, preferredMax: 22, speed: .92, burst: 1, burstPause: .58, reactionScale: 1.12, accuracyBonus: .12,
   },
+  adaptive: {
+    id: 'adaptive', name: 'SHIFT', label: 'ADAPTIVE', detail: 'Changes weapon and spacing as HP falls',
+    preferredMin: 8, preferredMax: 16, speed: 1.05, burst: 3, burstPause: .68, reactionScale: .86, accuracyBonus: .04, adaptive: true,
+  },
 };
 
 export function loadRivalStyle() {
