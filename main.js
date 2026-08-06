@@ -14,6 +14,8 @@ import { GearDraft } from './gears.js';
 import { RIVAL_STYLES, loadRivalStyle } from './rivalStyles.js';
 import { CosmeticLocker, COSMETICS } from './cosmetics.js';
 import { CIRCUIT_RIVALS, CircuitProgress } from './circuit.js';
+import { AimAssist } from './aimAssist.js';
+import { MobileDebug } from './mobileDebug.js';
 
 const settings = loadSettings();
 applySettings(settings);
@@ -35,11 +37,13 @@ let activeArenaKey = arenaMapKey;
 let arenaRoot = createArena(scene, colliders, activeArenaKey, obstacles).root;
 const effects = new Effects(scene, settings.quality);
 const controls = new Controls(renderer.domElement, settings);
-const player = new Player(camera, colliders, effects, audio);
+const player = new Player(camera, colliders, effects, audio, settings);
 let currentLoadout = loadLoadout();
 const weapon = new Weapon(scene, camera, effects, audio, currentLoadout);
 const enemy = new Enemy(scene, colliders, obstacles, effects, audio);
 const ui = new UI(camera);
+const touchAimAssist = new AimAssist(camera, obstacles, () => [enemy], settings);
+const mobileDebug = new MobileDebug(new URLSearchParams(location.search).has('touchDebug'));
 const contracts = new ContractTracker();
 const locker = new CosmeticLocker();
 const gearDraft = new GearDraft();
@@ -559,15 +563,6 @@ function hurt(amount, source) {
   if (player.hp <= 0) finishRound(false);
 }
 
-function aimAssist() {
-  if (settings.aimAssist === 'off' || !enemy.alive) return { x: 0, y: 0, strength: 0 };
-  const projected = enemy.aimPoint.project(camera);
-  if (projected.z > 1 || Math.abs(projected.x) > .3 || Math.abs(projected.y) > .3) return { x: 0, y: 0, strength: 0 };
-  const levels = { weak: .2, normal: .45, strong: .75 };
-  const strength = (levels[settings.aimAssist] || 0) * config.assist * (controls.mobile ? 1.2 : 1);
-  return { x: -projected.x * strength, y: projected.y * strength, strength };
-}
-
 const weaponHandlers = {
   onFire(info) {
     if (info.slot === 'primary' || info.slot === 'secondary') stats.shots++;
@@ -596,10 +591,18 @@ function loop() {
   const active = state === 'playing' || state === 'range';
   if (active) {
     const input = controls.sample();
-    player.update(dt, input, controls.look, aimAssist());
+    const assist = touchAimAssist.update(dt, {
+      touchInput: controls.lastInput === 'touch',
+      touchLooking: controls.touchLooking,
+      firing: input.fire,
+      look: controls.look,
+      active,
+    });
+    player.update(dt, input, controls.look, assist);
     weapon.update(dt, input, player, enemy, obstacles, weaponHandlers);
     enemy.update(dt, player, hurt);
     ui.update(player, weapon, enemy);
+    mobileDebug.update(dt, touchAimAssist.debugState, player.jumpDebug(), controls);
   }
   effects.update(dt);
   renderer.render(scene, camera);

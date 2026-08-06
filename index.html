@@ -87,13 +87,17 @@
         <label>効果音 <input id="setting-sfx" type="range" min="0" max="100"></label>
         <label>BGM <input id="setting-bgm" type="range" min="0" max="100"></label>
         <label>視点感度 <input id="setting-sensitivity" type="range" min="20" max="100"></label>
-        <label>エイムアシスト
-          <select id="setting-aimAssist"><option value="off">オフ</option><option value="weak">弱い</option><option value="normal">普通</option><option value="strong">強い</option></select>
-        </label>
+        <label><input id="setting-aimAssistEnabled" type="checkbox"> エイムアシスト</label>
+        <label>アシスト強度 <input id="setting-aimAssistStrength" type="range" min="0" max="100"></label>
         <label>照準サイズ <input id="setting-crosshairSize" type="range" min="70" max="150"></label>
         <label>照準色 <input id="setting-crosshairColor" type="color"></label>
         <label>ボタンサイズ <input id="setting-buttonSize" type="range" min="80" max="130"></label>
+        <label>ジャンプサイズ <input id="setting-jumpButtonSize" type="range" min="80" max="135"></label>
+        <label>ジャンプ位置 <select id="setting-jumpButtonPosition"><option value="low">低め</option><option value="standard">標準</option><option value="high">高め</option></select></label>
+        <label>射撃サイズ <input id="setting-fireButtonSize" type="range" min="80" max="135"></label>
+        <label>射撃位置 <select id="setting-fireButtonPosition"><option value="low">低め</option><option value="standard">標準</option><option value="high">高め</option></select></label>
         <label>画質 <select id="setting-quality"><option value="low">低</option><option value="medium">中</option><option value="high">高</option></select></label>
+        <label><input id="setting-autoJump" type="checkbox"> 自動連続ジャンプ</label>
         <label><input id="setting-cameraShake" type="checkbox"> カメラ振動</label>
         <label><input id="setting-leftHanded" type="checkbox"> 左利きレイアウト</label>
       </div>
@@ -114,6 +118,8 @@
 
     <div id="roundBanner" class="round-banner hidden"><b></b><small></small></div>
     <div id="crosshair"><i></i><i></i><em></em></div>
+    <div id="assistRange" class="assist-range"></div>
+    <output id="mobileDebug" class="mobile-debug"></output>
     <div id="combatCallout" class="combat-callout hidden"><b></b><small></small></div>
     <div id="hitDirection" class="hit-direction hidden"><i></i></div>
     <div id="damageFlash" class="damage-flash"></div>
@@ -142,6 +148,7 @@
     <button id="jump">JUMP</button>
     <button id="crouch">SLIDE</button>
     <button id="aim">AIM</button>
+    <button id="reload">R</button>
     <button id="quickMelee">Q</button>
     <button id="quickUtility">E</button>
   </div>
