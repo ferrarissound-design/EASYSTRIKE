@@ -182,10 +182,13 @@ export function createArena(scene, colliders, mapKey = 'crossline', sharedObstac
     block(-x, -z, width, height, depth, color, rotation);
   };
 
-  // Raised pieces still block bullets and sight lines, but sit above both hitbox heights
-  // (player 0-1.8, rival 0-2.0) so they never turn into invisible walls.
-  const beam = (x, y, z, width, height, depth, color = COLOR.block, rotation = 0) =>
-    outline(add(new THREE.BoxGeometry(width, height, depth), color, x, y, z, true, rotation));
+  // Overhead pieces stop bullets and sight lines but carry no movement collider, so they
+  // never become a rooftop the ground-bound rival cannot follow the player onto.
+  const beam = (x, y, z, width, height, depth, color = COLOR.block, rotation = 0) => {
+    const mesh = outline(add(new THREE.BoxGeometry(width, height, depth), color, x, y, z, false, rotation));
+    obstacles.push(mesh);
+    return mesh;
+  };
 
   // Scenery outside the play space: no collider, no shadow cost.
   const decor = (geometry, color, x, y, z, rotationY = 0) => {
@@ -255,7 +258,7 @@ export function createArena(scene, colliders, mapKey = 'crossline', sharedObstac
   } else if (mapKey === 'longshot') {
     mirroredBlock(-13.5, 14, 3.5, 2.7, 3, COLOR.blue);
     mirroredBlock(13.5, 10, 3, 2, 2.5, COLOR.block);
-    mirroredBlock(-14, 1.5, 3.5, 3.2, 2, COLOR.blockDark);
+    mirroredBlock(-14, 1.5, 3.5, 3, 2, COLOR.blockDark);
     mirroredBlock(14, 1.5, 3.5, 1.3, 2, COLOR.block);
     mirroredBlock(-5.5, 6, 2.2, 1.4, 2.2, COLOR.block);
     block(0, 0, 2.6, 1.15, 2.6, COLOR.white, Math.PI / 4);
@@ -263,25 +266,33 @@ export function createArena(scene, colliders, mapKey = 'crossline', sharedObstac
     // Pinwheel core: the two long walls break every spawn-to-spawn line while leaving
     // a diagonal rotation route open, the way the reference map's central base plays.
     mirroredBlock(-3, 4, 9, 3.6, 2.4, SNOW.panel);
-    block(0, 0, 3.6, 2.8, 3.6, SNOW.ice, Math.PI / 4);
+    block(0, 0, 1.4, 2.9, 1.4, SNOW.ice);
     mirroredBlock(6.5, 1.5, 2.6, 2.4, 2.6, SNOW.steel, Math.PI / 4);
     // Sniper lanes down both flanks, each with one gap to rotate through.
-    mirroredBlock(-11.5, 7.5, 2.4, 3.2, 8, SNOW.steel);
+    mirroredBlock(-11.5, 7.5, 2.4, 3, 8, SNOW.steel);
     mirroredBlock(11.5, 9.5, 2.4, 2.2, 5, SNOW.panel);
     // Outer ridge cover for long-range trades.
     mirroredBlock(16.5, 5, 3, 4.6, 3, SNOW.panel);
-    mirroredBlock(-16.8, 1.5, 2.2, 1.5, 5, SNOW.steel);
     // Spawn approach.
     mirroredBlock(-16.5, 12, 4.5, 2.6, 3, SNOW.blue);
     mirroredBlock(-5.5, 12, 2.6, 2.6, 2.6, SNOW.steel, Math.PI / 4);
     mirroredBlock(4, 8, 5, 1.3, 2, SNOW.panel);
+    // Climbing routes onto the tall pieces. Each tread runs the full length of the face it
+    // serves and sits flush against it, and every tall piece carries one on both long sides,
+    // so the rival meets a step wherever it walks up — its steering has no pathfinding and
+    // will not go looking for a ramp around the corner.
+    mirroredBlock(-3, 5.9, 9, 1.7, 1.4, SNOW.steel);
+    mirroredBlock(-3, 1.5, 9, 1.7, 1.4, SNOW.steel);
+    mirroredBlock(16.5, 8, 3, 2.4, 3, SNOW.panel);
+    mirroredBlock(16.5, 1.7, 3, 2.4, 3.6, SNOW.panel);
 
     // Overhead gantries on their support columns. The beams clear both hitboxes, so
     // they only stop stray high shots while giving the hall its vertical scale.
     [-8.5, 8.5].forEach(z => {
       beam(0, 5.95, z, 40, .55, 1.2, SNOW.steel);
-      // Columns stay off the centre lane so the main rotation route is never pinched.
-      [-14, -7.5, 7.5, 14].forEach(x => block(x, z, .5, 5.7, .5, SNOW.steel));
+      // Columns hug the side walls. Anything further in would pinch the rival between
+      // the column and the nearest cover, which its three-way steering cannot escape.
+      [-19, 19].forEach(x => block(x, z, .5, 5.7, .5, SNOW.steel));
     });
     [[-17.5, -17.5], [17.5, -17.5], [-17.5, 17.5], [17.5, 17.5]].forEach(([x, z]) => {
       outline(add(new THREE.CylinderGeometry(.22, .3, 7, 8), SNOW.steel, x, 3.5, z));

@@ -13,10 +13,12 @@ export function resolveEnemyMove(position, direction, distance, isBlocked) {
     { x: direction.z, y: 0, z: -direction.x },
   ];
 
-  for (const attempt of attempts) {
-    const next = candidate(position, attempt, distance);
-    if (!isBlocked(next)) return { position: next, moved: true };
+  // deflected は「まっすぐ進めず横に逃げた（あるいは全く動けなかった）」の意味。
+  // 呼び出し側はこれを見て、目の前の段差を登るかどうかを決める。
+  for (let index = 0; index < attempts.length; index++) {
+    const next = candidate(position, attempts[index], distance);
+    if (!isBlocked(next)) return { position: next, moved: true, deflected: index > 0 };
   }
 
-  return { position: { x: position.x, y: position.y, z: position.z }, moved: false };
+  return { position: { x: position.x, y: position.y, z: position.z }, moved: false, deflected: true };
 }
