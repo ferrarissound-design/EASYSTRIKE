@@ -37,6 +37,7 @@
         <button id="duelButton" class="primary">DUELを開始</button>
         <button id="rangeButton" class="range-button">射撃場</button>
       </div>
+      <button id="circuitButton" class="circuit-button"><span>RIVAL CIRCUIT</span><small id="circuitRecord">BEST 0/5 · --:--</small></button>
       <div class="menu-actions">
         <button id="loadoutButton">ロードアウト</button>
         <button id="lockerButton">STYLE</button>
@@ -144,6 +145,23 @@
     <button id="quickMelee">Q</button>
     <button id="quickUtility">E</button>
   </div>
+
+  <section id="circuit" class="panel circuit-panel hidden">
+    <div class="circuit-card">
+      <div class="circuit-topline"><span id="circuitStage">STAGE 1 / 5</span><b id="circuitKeys">+1 KEY</b></div>
+      <div id="circuitRoute" class="circuit-route"></div>
+      <div id="rivalEmblem" class="rival-emblem">J</div>
+      <p class="eyebrow" id="circuitTitle">THE RUSHER</p>
+      <h2 id="circuitName">JET</h2>
+      <blockquote id="circuitQuote"></blockquote>
+      <div class="circuit-tags"><span id="circuitWeapon">SCATTER</span><span id="circuitStyle">RUSHER</span><span id="circuitMap">POCKET</span></div>
+      <div class="circuit-intel"><b>RIVAL INTEL</b><p id="circuitWeakness"></p></div>
+      <div class="circuit-actions">
+        <button id="circuitLaunch" class="primary">CHALLENGE</button>
+        <button id="circuitMenu" class="range-button">メニュー</button>
+      </div>
+    </div>
+  </section>
 
   <section id="gearSelect" class="panel gear-panel hidden">
     <div class="wide-card">

@@ -60,15 +60,17 @@ export class UI {
     document.querySelector('.ammo')?.animate([{ transform: 'translateY(7px)', opacity: .45 }, { transform: 'none', opacity: 1 }], 170);
   }
 
-  setRounds(playerRounds, rivalRounds, roundNumber, mode = 'DUEL') {
+  setRounds(playerRounds, rivalRounds, roundNumber, mode = 'DUEL', target = 5) {
     this.write(document.getElementById('playerRounds'), 'playerRounds', playerRounds);
     this.write(document.getElementById('rivalRounds'), 'rivalRounds', rivalRounds);
     this.write(document.getElementById('roundNumber'), 'roundNumber', mode === 'RANGE' ? 'FREE PRACTICE' : `ROUND ${roundNumber}`);
     this.write(document.getElementById('modeLabel'), 'modeLabel', mode);
     [['playerRoundDots', playerRounds], ['rivalRoundDots', rivalRounds]].forEach(([id, score]) => {
       const box = document.getElementById(id);
-      if (!box.children.length) {
-        for (let index = 0; index < 5; index++) box.append(document.createElement('s'));
+      box.style.gridTemplateColumns = `repeat(${target}, 1fr)`;
+      if (box.children.length !== target) {
+        box.replaceChildren();
+        for (let index = 0; index < target; index++) box.append(document.createElement('s'));
       }
       [...box.children].forEach((dot, index) => dot.classList.toggle('on', index < score));
     });
@@ -179,12 +181,12 @@ export class UI {
     this.flashTimer = setTimeout(() => this.damageFlash.classList.remove('active'), 75);
   }
 
-  end(win, playerRounds, rivalRounds, stats, contractText = '', playerTitle = 'FIRST BLAST') {
+  end(win, playerRounds, rivalRounds, stats, contractText = '', playerTitle = 'FIRST BLAST', rivalName = 'RIVAL') {
     document.exitPointerLock?.();
     document.getElementById('resultEyebrow').textContent = playerTitle;
     document.getElementById('resultReward').textContent = contractText;
     document.getElementById('result').textContent = win ? 'VICTORY' : 'DEFEAT';
-    document.getElementById('resultDetail').textContent = `YOU ${playerRounds}  —  ${rivalRounds} RIVAL`;
+    document.getElementById('resultDetail').textContent = `YOU ${playerRounds}  —  ${rivalRounds} ${rivalName}`;
     const accuracy = stats.shots ? Math.round(stats.hits / stats.shots * 100) : 0;
     document.getElementById('matchStats').innerHTML = `
       <div><b>${accuracy}%</b><small>命中率</small></div>
