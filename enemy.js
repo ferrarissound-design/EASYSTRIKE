@@ -143,5 +143,5 @@ export class Enemy {
     this.parts.forEach(part=>{part.mesh.position.copy(part.rest);part.mesh.rotation.set(0,0,0)});this.gun.rotation.x=-AIM_ARM;this.exploding=0;
     this.upper.position.y=0;this.legs.forEach(leg=>leg.rotation.set(0,0,0));this.arms[0].rotation.set(0,0,0);this.arms[1].rotation.set(AIM_ARM,0,0);
     this.untint();this.flash(false);this.setFace('normal');this.flashToken++;
-    this.hp=this.maxHp||100;this.alive=true;this.recoil=0;this.moving=false;this.animTime=0;this.moveDirection=null;this.moveSpeed=0;this.thinkTimer=1;this.shotTimer=1.2;this.seenTime=0;this.burstShots=0;this.visibleToPlayer=false;this.revealTimer=0;this.strafeDirection=Math.random()<.5?-1:1;this.effects?.ring(safe,0x7eeeff)}
+    this.hp=this.maxHp||100;this.alive=true;this.recoil=0;this.moving=false;this.animTime=0;this.moveDirection=null;this.moveSpeed=0;this.thinkTimer=.25;this.shotTimer=Math.max(.55,(this.config?.reaction??.6)+.35);this.seenTime=0;this.burstShots=0;this.visibleToPlayer=false;this.revealTimer=0;this.strafeDirection=Math.random()<.5?-1:1;this.effects?.ring(safe,0x7eeeff)}
 }

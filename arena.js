@@ -152,7 +152,7 @@ export function createArena(scene, colliders, mapKey = 'crossline', sharedObstac
     mirroredBlock(10, 7, 2.6, 3, 5.5, COLOR.block);
     mirroredBlock(-14.5, 1.5, 5, 2, 1.2, COLOR.block);
     mirroredBlock(14.5, 1.5, 5, 2, 1.2, COLOR.blockDark);
-    block(0, 0, 5.2, 1.35, 5.2, COLOR.white, Math.PI / 4);
+    block(0, 0, 5.2, 2.2, 5.2, COLOR.white, Math.PI / 4);
     mirroredBlock(-6.5, 0, 2.4, 2.4, 2.4, COLOR.blockDark);
   }
 
