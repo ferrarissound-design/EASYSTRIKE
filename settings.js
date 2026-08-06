@@ -2,7 +2,8 @@ const defaults = {
   sfx: 70, bgm: 20, sensitivity: 50, aimAssistEnabled: true, aimAssistStrength: 65, cameraShake: false,
   crosshairSize: 100, crosshairColor: '#ffffff', buttonSize: 100, leftHanded: false,
   jumpButtonSize: 105, jumpButtonPosition: 'standard', fireButtonSize: 110, fireButtonPosition: 'standard', autoJump: true,
-  quality: matchMedia('(pointer: coarse)').matches ? 'low' : 'medium',
+  // 端末で分けない。スマホでも影と質感をそのまま出す。
+  quality: 'medium', qualityPinned: false,
 };
 
 export function loadSettings() {
@@ -13,6 +14,9 @@ export function loadSettings() {
       merged.aimAssistEnabled = saved.aimAssist !== 'off';
       merged.aimAssistStrength = { weak: 35, normal: 65, strong: 90 }[saved.aimAssist] || 65;
     }
+    // 以前はタッチ端末に「低」を自動で割り当てていた。自分で選んだ画質だけを残し、
+    // 割り当てられただけのものは新しい既定に戻す。
+    if (!merged.qualityPinned) merged.quality = defaults.quality;
     return merged;
   } catch { return { ...defaults }; }
 }
@@ -41,6 +45,7 @@ export function bindSettings(settings, onChange) {
     input.value = settings[id];
     input.addEventListener('input', () => {
       settings[id] = input.type === 'range' ? Number(input.value) : input.value;
+      if (id === 'quality') settings.qualityPinned = true;
       saveSettings(settings); applySettings(settings); onChange?.();
     });
   });
