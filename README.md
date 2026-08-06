@@ -17,7 +17,8 @@ Three.jsで作られた、オフライン1対1アリーナFPSです。左右対�
 - 方向別被弾表示、撃破コールアウト、低HP警告などの戦闘フィードバック
 - ラウンド間に最大3個まで選ぶ6種類の試合内ギア
 - RUSHER / TACTICIAN / MARKSMANのCPU戦闘スタイル
-- CROSSLINE / POCKET / LONGSHOTの3アリーナ
+- CROSSLINE / POCKET / LONGSHOT / SUMMITの4アリーナ
+- 雪山と遠景の山並みを持つ大型ステージSUMMIT（風車状の中央基地、両サイドの狙撃レーン、頭上ガントリー）
 - 射撃場と移動する練習ターゲット
 - 永続保存されるロードアウト、設定、契約、KEY
 - 契約とDUEL勝利で得るKEYを使い、武器カラー、着弾エフェクト、称号を解放するSTYLE LOCKER

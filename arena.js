@@ -8,6 +8,7 @@ export const ARENA_MAPS = {
   crossline: { id: 'crossline', name: 'クロスライン', short: 'バランス', detail: '3つのルートと使いやすい遮蔽物がある標準アリーナ' },
   pocket: { id: 'pocket', name: 'ポケット', short: '近距離', detail: '遮蔽物が多く、近距離戦が起きやすいアリーナ' },
   longshot: { id: 'longshot', name: 'ロングショット', short: '遠距離', detail: '長い射線と少ない安全地帯を持つ遠距離アリーナ' },
+  summit: { id: 'summit', name: 'サミット', short: '雪山', detail: '雪山の中央基地を風車状の壁が囲む、狙撃レーン付きの大型ステージ' },
 };
 
 export function loadArenaMap() {
@@ -36,6 +37,82 @@ const COLOR = {
   blockDark: 0xaebbd5,
   white: 0xf8fbff,
 };
+
+// Snow-summit theme: brighter concrete, icy accents and steel catwalks.
+const SNOW = {
+  floor: 0xfbfdff,
+  grid: 0xd3e2f5,
+  panel: 0xeff5ff,
+  steel: 0xbccbe2,
+  ice: 0xcfeaff,
+  blue: 0x3b7ee6,
+  red: 0xf0466f,
+  cliff: 0xccdcf1,
+};
+
+const THEMES = {
+  default: {
+    floor: COLOR.floor, grid: COLOR.grid, gridDivisions: 14, gridOpacity: .7,
+    wallEnd: [COLOR.red, COLOR.blue], wallSide: COLOR.ink, trim: COLOR.white,
+    zenith: 0x438be0, horizon: 0xe3f1ff,
+    hemiSky: 0xe6f2ff, hemiGround: 0x7b86a7, hemi: 1.75,
+    sun: 0xfff7ef, sunIntensity: 1.65, sunPosition: [8, 18, 10],
+    points: [[-13, 7, -10, 0x4f91ff], [13, 7, 10, 0xff5d91]],
+  },
+  summit: {
+    floor: SNOW.floor, grid: SNOW.grid, gridDivisions: 21, gridOpacity: .34,
+    wallEnd: [SNOW.red, SNOW.blue], wallSide: SNOW.steel, trim: SNOW.panel,
+    zenith: 0x2c78d8, horizon: 0xf4fbff,
+    hemiSky: 0xf3faff, hemiGround: 0x9fb2d0, hemi: 2.05,
+    sun: 0xfffdf4, sunIntensity: 1.85, sunPosition: [-11, 20, 7],
+    points: [[-12, 6, 9, 0x63a8ff], [12, 6, -9, 0xff6f9c]],
+  },
+};
+
+let snowSource;
+// Speckled overlay so the flat snow floor still reads as a surface at sniper range.
+function snowPattern() {
+  if (snowSource) return snowSource;
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const context = canvas.getContext('2d');
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, size, size);
+  for (let index = 0; index < 220; index++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    context.fillStyle = index % 3 ? 'rgba(206,225,247,.3)' : 'rgba(255,255,255,.9)';
+    context.beginPath();
+    context.arc(x, y, 1 + Math.random() * 1.8, 0, Math.PI * 2);
+    context.fill();
+  }
+  context.strokeStyle = 'rgba(196,218,244,.55)';
+  context.lineWidth = 2;
+  context.strokeRect(0, 0, size, size);
+  snowSource = new THREE.CanvasTexture(canvas);
+  snowSource.wrapS = snowSource.wrapT = THREE.RepeatWrapping;
+  snowSource.colorSpace = THREE.SRGBColorSpace;
+  return snowSource;
+}
+
+let cloudSource;
+function cloudPattern() {
+  if (cloudSource) return cloudSource;
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const context = canvas.getContext('2d');
+  const gradient = context.createRadialGradient(size / 2, size / 2, size * .08, size / 2, size / 2, size * .5);
+  gradient.addColorStop(0, 'rgba(255,255,255,.95)');
+  gradient.addColorStop(.55, 'rgba(255,255,255,.55)');
+  gradient.addColorStop(1, 'rgba(255,255,255,0)');
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, size, size);
+  cloudSource = new THREE.CanvasTexture(canvas);
+  cloudSource.colorSpace = THREE.SRGBColorSpace;
+  return cloudSource;
+}
 
 let studSource;
 function studPattern() {
@@ -105,31 +182,69 @@ export function createArena(scene, colliders, mapKey = 'crossline', sharedObstac
     block(-x, -z, width, height, depth, color, rotation);
   };
 
-  add(new THREE.BoxGeometry(ARENA_SIZE, .5, ARENA_SIZE), COLOR.floor, 0, -.25, 0, false);
-  const grid = new THREE.GridHelper(ARENA_SIZE, 14, COLOR.grid, COLOR.grid);
+  // Raised pieces still block bullets and sight lines, but sit above both hitbox heights
+  // (player 0-1.8, rival 0-2.0) so they never turn into invisible walls.
+  const beam = (x, y, z, width, height, depth, color = COLOR.block, rotation = 0) =>
+    outline(add(new THREE.BoxGeometry(width, height, depth), color, x, y, z, true, rotation));
+
+  // Scenery outside the play space: no collider, no shadow cost.
+  const decor = (geometry, color, x, y, z, rotationY = 0) => {
+    const mesh = add(geometry, color, x, y, z, false, rotationY);
+    mesh.castShadow = mesh.receiveShadow = false;
+    return mesh;
+  };
+
+  const theme = THEMES[mapKey] || THEMES.default;
+  const summit = mapKey === 'summit';
+
+  add(new THREE.BoxGeometry(ARENA_SIZE, .5, ARENA_SIZE), theme.floor, 0, -.25, 0, false);
+  if (summit) {
+    const snow = new THREE.Mesh(
+      new THREE.PlaneGeometry(ARENA_SIZE, ARENA_SIZE),
+      new THREE.MeshLambertMaterial({ color: SNOW.floor, map: snowPattern().clone() }),
+    );
+    snow.material.map.needsUpdate = true;
+    snow.material.map.repeat.set(12, 12);
+    snow.rotation.x = -Math.PI / 2;
+    snow.position.y = .005;
+    snow.receiveShadow = true;
+    root.add(snow);
+  }
+  const grid = new THREE.GridHelper(ARENA_SIZE, theme.gridDivisions, theme.grid, theme.grid);
   grid.position.y = .025;
   grid.material.transparent = true;
-  grid.material.opacity = .7;
+  grid.material.opacity = theme.gridOpacity;
   root.add(grid);
 
   // Team-colored spawn halves make orientation immediate without changing collision.
-  [[0, -10, COLOR.red], [0, 10, COLOR.blue]].forEach(([x, z, color]) => {
+  const [endRed, endBlue] = theme.wallEnd;
+  [[0, -10, endRed], [0, 10, endBlue]].forEach(([x, z, color]) => {
     const zone = add(new THREE.PlaneGeometry(40, 20), color, x, .012, z, false);
     zone.rotation.x = -Math.PI / 2;
     zone.material.transparent = true;
-    zone.material.opacity = .09;
+    zone.material.opacity = summit ? .07 : .09;
     zone.material.depthWrite = false;
   });
 
-  [[0, -21, 0, COLOR.red], [0, 21, Math.PI, COLOR.blue], [-21, 0, Math.PI / 2, COLOR.ink], [21, 0, -Math.PI / 2, COLOR.ink]].forEach(([x, z, rotation, color]) => {
+  [[0, -21, 0, endRed], [0, 21, Math.PI, endBlue], [-21, 0, Math.PI / 2, theme.wallSide], [21, 0, -Math.PI / 2, theme.wallSide]].forEach(([x, z, rotation, color]) => {
     const wall = outline(add(new THREE.BoxGeometry(ARENA_SIZE, WALL_HEIGHT, .7), color, x, WALL_HEIGHT / 2, z, true, rotation));
-    const trim = new THREE.Mesh(new THREE.BoxGeometry(ARENA_SIZE, .45, .9), material(COLOR.white));
+    const trim = new THREE.Mesh(new THREE.BoxGeometry(ARENA_SIZE, .45, .9), material(theme.trim));
     trim.position.set(0, WALL_HEIGHT / 2 - .35, 0);
     wall.add(trim);
+    if (!summit) return;
+    // Vertical seams turn the flat wall into the paneled hall the reference maps use.
+    for (let index = -6; index <= 6; index++) {
+      const seam = new THREE.Mesh(new THREE.BoxGeometry(.28, WALL_HEIGHT - 1.4, .95), material(SNOW.panel));
+      seam.position.set(index * 3.1, -.5, 0);
+      wall.add(seam);
+    }
+    const base = new THREE.Mesh(new THREE.BoxGeometry(ARENA_SIZE, 1.1, 1.05), material(SNOW.steel));
+    base.position.set(0, -WALL_HEIGHT / 2 + .55, 0);
+    wall.add(base);
   });
 
   // Every layout is rotationally symmetric so neither spawn gets a geometry advantage.
-  mirroredBlock(0, 13, 6, 1.2, 1.2, COLOR.blockDark);
+  mirroredBlock(0, 13, 6, 1.2, 1.2, summit ? SNOW.steel : COLOR.blockDark);
   if (mapKey === 'pocket') {
     mirroredBlock(-6.5, 12.5, 4.5, 2.8, 4.5, COLOR.blue);
     mirroredBlock(6.5, 9, 3.2, 2.5, 5, COLOR.block);
@@ -144,6 +259,44 @@ export function createArena(scene, colliders, mapKey = 'crossline', sharedObstac
     mirroredBlock(14, 1.5, 3.5, 1.3, 2, COLOR.block);
     mirroredBlock(-5.5, 6, 2.2, 1.4, 2.2, COLOR.block);
     block(0, 0, 2.6, 1.15, 2.6, COLOR.white, Math.PI / 4);
+  } else if (summit) {
+    // Pinwheel core: the two long walls break every spawn-to-spawn line while leaving
+    // a diagonal rotation route open, the way the reference map's central base plays.
+    mirroredBlock(-3, 4, 9, 3.6, 2.4, SNOW.panel);
+    block(0, 0, 3.6, 2.8, 3.6, SNOW.ice, Math.PI / 4);
+    mirroredBlock(6.5, 1.5, 2.6, 2.4, 2.6, SNOW.steel, Math.PI / 4);
+    // Sniper lanes down both flanks, each with one gap to rotate through.
+    mirroredBlock(-11.5, 7.5, 2.4, 3.2, 8, SNOW.steel);
+    mirroredBlock(11.5, 9.5, 2.4, 2.2, 5, SNOW.panel);
+    // Outer ridge cover for long-range trades.
+    mirroredBlock(16.5, 5, 3, 4.6, 3, SNOW.panel);
+    mirroredBlock(-16.8, 1.5, 2.2, 1.5, 5, SNOW.steel);
+    // Spawn approach.
+    mirroredBlock(-16.5, 12, 4.5, 2.6, 3, SNOW.blue);
+    mirroredBlock(-5.5, 12, 2.6, 2.6, 2.6, SNOW.steel, Math.PI / 4);
+    mirroredBlock(4, 8, 5, 1.3, 2, SNOW.panel);
+
+    // Overhead gantries on their support columns. The beams clear both hitboxes, so
+    // they only stop stray high shots while giving the hall its vertical scale.
+    [-8.5, 8.5].forEach(z => {
+      beam(0, 5.95, z, 40, .55, 1.2, SNOW.steel);
+      // Columns stay off the centre lane so the main rotation route is never pinched.
+      [-14, -7.5, 7.5, 14].forEach(x => block(x, z, .5, 5.7, .5, SNOW.steel));
+    });
+    [[-17.5, -17.5], [17.5, -17.5], [-17.5, 17.5], [17.5, 17.5]].forEach(([x, z]) => {
+      outline(add(new THREE.CylinderGeometry(.22, .3, 7, 8), SNOW.steel, x, 3.5, z));
+      const lamp = beam(x, 7.1, z, 1.5, .5, 1.1, SNOW.ice);
+      lamp.material.emissive = new THREE.Color(0xbfe6ff);
+    });
+    // Team banners on the end walls.
+    [[0, 20.5, Math.PI, SNOW.blue], [0, -20.5, 0, SNOW.red]].forEach(([x, z, rotation, color]) => {
+      const banner = decor(new THREE.PlaneGeometry(9, 4.4), color, x, 5.2, z, rotation);
+      banner.material.side = THREE.DoubleSide;
+    });
+    // Snow banks packed into the gutter between the play space and the walls.
+    mirroredBlock(20.2, 12, 1.2, 1.1, 9, SNOW.floor);
+    mirroredBlock(20.2, -1, 1.2, .7, 8, SNOW.floor);
+    mirroredBlock(-12, 20.2, 10, .9, 1.2, SNOW.floor);
   } else {
     mirroredBlock(-7.5, 14.5, 4, 2.6, 3, COLOR.blue);
     mirroredBlock(7.5, 14.5, 4, 2.6, 3, COLOR.block);
@@ -156,11 +309,34 @@ export function createArena(scene, colliders, mapKey = 'crossline', sharedObstac
     mirroredBlock(-6.5, 0, 2.4, 2.4, 2.4, COLOR.blockDark);
   }
 
+  if (summit) {
+    // Peaks and clouds beyond the walls: they read as distance without adding draw weight.
+    [[-44, 34, -38, 22], [-8, 42, -54, 30], [29, 30, -47, 19], [52, 29, -6, 16],
+     [42, 36, 32, 24], [4, 31, 54, 20], [-36, 32, 42, 21], [-54, 28, 8, 15]]
+      .forEach(([x, height, z, radius], index) => {
+        const spin = index * .7;
+        decor(new THREE.ConeGeometry(radius, height, 5), SNOW.cliff, x, height / 2 - 6, z, spin);
+        // Cap radius matches the ridge width at 70% height so it reads as snow, not a hat.
+        decor(new THREE.ConeGeometry(radius * .3, height * .32, 5), SNOW.floor, x, height * .86 - 6, z, spin);
+      });
+    const cloudMaterial = new THREE.MeshBasicMaterial({
+      map: cloudPattern().clone(), transparent: true, opacity: .85, depthWrite: false, fog: false,
+    });
+    cloudMaterial.map.needsUpdate = true;
+    [[-30, 28, -38, 24], [24, 31, -36, 20], [40, 26, 18, 22], [-36, 24, 30, 18], [0, 34, -48, 28]]
+      .forEach(([x, y, z, size]) => {
+        const cloud = new THREE.Mesh(new THREE.PlaneGeometry(size, size * .45), cloudMaterial);
+        cloud.position.set(x, y, z);
+        cloud.lookAt(0, y, 0);
+        root.add(cloud);
+      });
+  }
+
   const sky = new THREE.SphereGeometry(70, 18, 12);
   const skyColors = [];
   const vertices = sky.attributes.position;
-  const zenith = new THREE.Color(0x438be0);
-  const horizon = new THREE.Color(0xe3f1ff);
+  const zenith = new THREE.Color(theme.zenith);
+  const horizon = new THREE.Color(theme.horizon);
   for (let index = 0; index < vertices.count; index++) {
     const height = Math.max(0, Math.min(1, vertices.getY(index) / 70 * 1.5 + .2));
     const color = horizon.clone().lerp(zenith, height);
@@ -169,13 +345,13 @@ export function createArena(scene, colliders, mapKey = 'crossline', sharedObstac
   sky.setAttribute('color', new THREE.Float32BufferAttribute(skyColors, 3));
   root.add(new THREE.Mesh(sky, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false })));
 
-  root.add(new THREE.HemisphereLight(0xe6f2ff, 0x7b86a7, 1.75));
-  const sun = new THREE.DirectionalLight(0xfff7ef, 1.65);
-  sun.position.set(8, 18, 10);
+  root.add(new THREE.HemisphereLight(theme.hemiSky, theme.hemiGround, theme.hemi));
+  const sun = new THREE.DirectionalLight(theme.sun, theme.sunIntensity);
+  sun.position.set(...theme.sunPosition);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
   root.add(sun);
-  [[-13, 7, -10, 0x4f91ff], [13, 7, 10, 0xff5d91]].forEach(([x, y, z, color]) => {
+  theme.points.forEach(([x, y, z, color]) => {
     const light = new THREE.PointLight(color, 220, 26, 2);
     light.position.set(x, y, z);
     root.add(light);
