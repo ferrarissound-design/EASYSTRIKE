@@ -16,7 +16,9 @@ import { CosmeticLocker, COSMETICS } from './cosmetics.js';
 import { CIRCUIT_RIVALS, CircuitProgress } from './circuit.js';
 import { AimAssist } from './aimAssist.js';
 import { MobileDebug } from './mobileDebug.js';
+import { bindViewportGestureLock } from './viewportGuard.js';
 
+bindViewportGestureLock();
 const settings = loadSettings();
 applySettings(settings);
 const audio = new GameAudio(settings);
