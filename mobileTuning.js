@@ -1,6 +1,6 @@
 export const MOBILE_TUNING = Object.freeze({
   movement: Object.freeze({
-    JumpForce: 8.7,
+    JumpForce: 12.31,
     Gravity: 23,
     AirControl: 18,
     JumpBufferTime: .14,

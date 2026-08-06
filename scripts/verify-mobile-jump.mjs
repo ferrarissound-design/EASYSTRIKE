@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { JumpController } from '../jumpController.js';
+import { MOBILE_TUNING } from '../mobileTuning.js';
 
 const settings = { autoJump: true };
 const state = (held, grounded, airJumps = 0) => ({ held, grounded, sliding: false, airJumps });
@@ -20,5 +21,10 @@ assert.equal(auto.update(.1, state(true, true)).jump, true, 'held jump should re
 
 const slideCancel = new JumpController(settings);
 assert.equal(slideCancel.update(.016, { ...state(true, true), sliding: true }).jump, true, 'jump should cancel a slide immediately');
+
+const previousApex = 8.7 ** 2 / (2 * MOBILE_TUNING.movement.Gravity);
+const tunedApex = MOBILE_TUNING.movement.JumpForce ** 2 / (2 * MOBILE_TUNING.movement.Gravity);
+assert.ok(tunedApex >= previousApex * 2, 'jump apex should be at least twice the previous height');
+assert.ok(tunedApex <= previousApex * 2.02, 'jump apex should stay close to the requested double height');
 
 console.log('Mobile jump timing checks passed');
