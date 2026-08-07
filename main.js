@@ -68,6 +68,7 @@ let state = 'menu';
 let mode = 'duel';
 let roundTarget = 5;
 let circuitIndex = 0;
+const rivalAccent = () => activeRival ? parseInt(activeRival.color.slice(1), 16) : null; // サーキットのライバルは同じ戦闘スタイルでも専用色で見分けられるようにする。
 let circuitRunKeys = 0;
 let lastMatchWon = false;
 let roundNumber = 1;
@@ -212,7 +213,7 @@ function showCircuitCard() {
     return node;
   }));
   config = { playerHp: 100, ...activeRival.config };
-  enemy.configure(config, activeStyle, activeWeapon);
+  enemy.configure(config, activeStyle, activeWeapon, rivalAccent());
   enemy.respawn(RIVAL_SPAWN);
 }
 
@@ -226,7 +227,7 @@ function launchCircuitMatch() {
   gearDraft.reset();
   applyGearModifiers();
   player.configure(config.playerHp);
-  enemy.configure(config, activeStyle, activeWeapon);
+  enemy.configure(config, activeStyle, activeWeapon, rivalAccent());
   enemy.gameEnded = false;
   ui.setRivalStyle({ label: activeRival.name });
   preparePlayView();
@@ -372,7 +373,7 @@ function startDuel() {
   roundNumber = 1;
   config = DIFFICULTIES[difficultyKey];
   player.configure(config.playerHp);
-  enemy.configure(config, activeStyle, activeWeapon);
+  enemy.configure(config, activeStyle, activeWeapon, rivalAccent());
   enemy.gameEnded = false;
   preparePlayView();
   beginRound();
@@ -417,7 +418,7 @@ async function beginRound() {
   enemy.gameEnded = false;
   // ランダム指定なら毎ラウンド引き直す。同じ試合でも相手の戦い方と武器が入れ替わる。
   if (mode === 'duel' && isRandomStyle()) rollDuelStyle();
-  enemy.configure(config, activeStyle, activeWeapon);
+  enemy.configure(config, activeStyle, activeWeapon, rivalAccent());
   player.respawn(PLAYER_SPAWN, 0);
   enemy.respawn(RIVAL_SPAWN);
   weapon.refillAll();

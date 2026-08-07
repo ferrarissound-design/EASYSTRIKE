@@ -100,13 +100,50 @@ export class Enemy {
     const barrel=piece(gun,new THREE.CylinderGeometry(.16,.16,1.6,8),0,.05,1.7,metal,false);barrel.rotation.x=Math.PI/2;
     this.muzzle=new THREE.Object3D();this.muzzle.position.set(0,.05,2.6);gun.add(this.muzzle);
     this.parts.push({mesh:gun,rest:gun.position.clone(),velocity:new THREE.Vector3(),spin:0});
+    this.metalMaterial=metal;
+    // 戦闘スタイルごとの見た目。全種類をここで一度だけ作り、applyLookで該当分だけ見せる。
+    this.accessories=this.createAccessories(upper,this.head);
     // 当たり判定を補う見えない箱。等身を縮めたぶん狙いにくくならないよう、胴・頭・肩の
     // 隙間を埋める。materialがvisible:falseなので描画はされず、レイキャストだけ拾う。
     const proxy=new THREE.Mesh(new THREE.BoxGeometry(3.6,3.4,1.6),new THREE.MeshBasicMaterial({visible:false}));proxy.position.set(0,3.5,0);proxy.userData.hitZone='body';rig.add(proxy);
     return group;
   }
+  // タイプ別の装飾一式。既定では全部非表示にしておき、applyLookで1種類だけ出す。
+  createAccessories(upper,head){
+    const accent=(color)=>surfaceMaterial(color,{flatShading:false,roughness:.55,envMapIntensity:.4});
+    const hide=(mesh)=>{mesh.visible=false;mesh.raycast=()=>{};return mesh};
+    const spikes=[-1,1].map(side=>{
+      const spike=hide(new THREE.Mesh(new THREE.ConeGeometry(.32,.55,4),accent(0xff8a31)));
+      spike.position.set(side*1.53,4.85,0);spike.rotation.y=Math.PI/4;upper.add(spike);return spike;
+    });
+    const visor=hide(new THREE.Mesh(new THREE.BoxGeometry(1.6,.28,.25),accent(0x101418)));
+    visor.position.set(0,.72,.55);head.add(visor);
+    const scope=hide(new THREE.Mesh(new THREE.CylinderGeometry(.08,.1,.7,8),accent(0x64ecff)));
+    scope.position.set(0,1.05,0);head.add(scope);
+    const hood=hide(new THREE.Mesh(roundedBox(1.3,1.6,.18,.12),accent(0x1c1230)));
+    hood.position.set(0,3.7,-.62);hood.rotation.x=.22;upper.add(hood);
+    const backpack=hide(new THREE.Mesh(roundedBox(1.4,1.5,.7),accent(0x4a4a4a)));
+    backpack.position.set(0,3,-.75);upper.add(backpack);
+    const fin=hide(new THREE.Mesh(roundedBox(.18,1,.55,.05),accent(0x1fae6b)));
+    fin.position.set(1.53,4.4,-.15);fin.rotation.z=-.3;upper.add(fin);
+    const core=hide(new THREE.Mesh(new THREE.SphereGeometry(.22,10,8),new THREE.MeshBasicMaterial({color:0xff4fd1})));
+    core.position.set(0,3,.58);upper.add(core);
+    return{spikes,visor,scope,hood,backpack,fin,core};
+  }
+  // スタイルに応じて色と装飾を切り替える。ラウンドやサーキット戦のたびにconfigureから呼ばれる。
+  applyLook(style,accentColor=null){
+    const look=(style&&style.look)||DEFAULT_STYLE.look;
+    this.bodyMaterials[0].color.setHex(accentColor??look.shirt);
+    this.bodyMaterials[1].color.setHex(look.pants);
+    this.bodyMaterials[2].color.setHex(look.skin);
+    if(this.metalMaterial&&look.metal!=null)this.metalMaterial.color.setHex(look.metal);
+    Object.entries(this.accessories).forEach(([key,meshes])=>{
+      const show=key===look.accessory;
+      (Array.isArray(meshes)?meshes:[meshes]).forEach(mesh=>mesh.visible=show);
+    });
+  }
   createShot(){const mesh=new THREE.Mesh(new THREE.SphereGeometry(.09,6,4),new THREE.MeshBasicMaterial({color:0xffbd67}));mesh.visible=false;this.scene.add(mesh);return{mesh,active:false,velocity:new THREE.Vector3(),life:0,damage:0,color:0xffbd67}}
-  configure(config,style=null,weapon='pulse'){this.config=config;if(style)this.style=style;this.weaponKey=weapon||'pulse';this.maxHp=config.enemyHp;this.hp=this.maxHp;this.clearShots()}
+  configure(config,style=null,weapon='pulse',accentColor=null){this.config=config;if(style)this.style=style;this.weaponKey=weapon||'pulse';this.maxHp=config.enemyHp;this.hp=this.maxHp;this.clearShots();this.applyLook(this.style||DEFAULT_STYLE,accentColor)}
   currentWeapon(){return enemyWeaponFor(this.weaponKey,this.hp/this.maxHp)}
   // 敵の高さに依存する参照点。他のファイルはこれを使い、直接オフセットを書かない。
   get aimPoint(){return new THREE.Vector3(this.group.position.x,this.group.position.y+CENTER_Y,this.group.position.z)}   // 胸のあたり。狙点と視線の原点。
@@ -125,6 +162,7 @@ export class Enemy {
     this.arms[1].rotation.x=AIM_ARM+this.recoil*.28;                           // 銃を持つ腕は前へ固定。反動は腕ごと跳ねる。
     this.upper.position.y=Math.abs(Math.sin(this.animTime))*(this.moving?.22:.05);
     this.head.rotation.x=-.03-this.recoil*.1;
+    if(this.accessories.core.visible)this.accessories.core.scale.setScalar(1+Math.sin(this.animTime*3)*.15);   // 適応型のコアは常に脈打たせて「変化する」印象を出す。
   }
   muzzleFlash(){this.muzzle.getWorldPosition(this.muzzleWorld);this.effects.burst(this.muzzleWorld,this.currentWeapon().color,3,.13,.16);this.recoil=1}
   canSeePlayer(player){const origin=new THREE.Vector3(this.group.position.x,this.group.position.y+HEAD_Y,this.group.position.z),target=player.position.clone(),direction=target.sub(origin),distance=direction.length();this.ray.set(origin,direction.normalize());const blocker=this.ray.intersectObjects(this.obstacles,false)[0];return !blocker||blocker.distance>distance}
