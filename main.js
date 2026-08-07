@@ -11,7 +11,7 @@ import { loadSettings, applySettings, bindSettings } from './settings.js';
 import { ContractTracker, CONTRACTS } from './contracts.js';
 import { GameAudio } from './audio.js';
 import { GearDraft } from './gears.js';
-import { RIVAL_STYLES, loadRivalStyle } from './rivalStyles.js';
+import { RIVAL_STYLES, STYLE_KEYS, RANDOM_STYLE, RANDOM_STYLE_DETAIL, DEFAULT_STYLE, loadRivalStyle, rollRivalStyle } from './rivalStyles.js';
 import { CosmeticLocker, COSMETICS } from './cosmetics.js';
 import { CIRCUIT_RIVALS, CircuitProgress } from './circuit.js';
 import { AimAssist } from './aimAssist.js';
@@ -59,8 +59,10 @@ weapon.setCosmetics(locker.loadout());
 let difficultyKey = loadDifficulty();
 let config = DIFFICULTIES[difficultyKey];
 let rivalStyleKey = loadRivalStyle();
-let rivalStyle = RIVAL_STYLES[rivalStyleKey];
+let rivalStyle = RIVAL_STYLES[rivalStyleKey] || DEFAULT_STYLE;   // 「ランダム」選択中はメニュー表示用の控えとして使う。
 let activeStyle = rivalStyle;
+let activeWeapon = rivalStyle.weapon || 'pulse';
+let rolledStyleKey = null;
 let activeRival = null;
 let state = 'menu';
 let mode = 'duel';
@@ -101,16 +103,47 @@ bindSettings(settings, () => {
   refreshQuality(renderer, scene, settings.quality);
 });
 
-function selectRivalStyle(value) {
-  rivalStyleKey = value;
-  rivalStyle = RIVAL_STYLES[value];
-  localStorage.setItem('firstBlastRivalStyle', value);
-  document.querySelectorAll('#rivalStyle button').forEach(button => button.classList.toggle('selected', button.dataset.value === value));
-  document.getElementById('styleHint').textContent = rivalStyle.detail;
-  ui.setRivalStyle(rivalStyle);
+const isRandomStyle = () => rivalStyleKey === RANDOM_STYLE;
+
+// スタイルの一覧はrivalStyles.jsが持つ。増やしてもメニューのボタンは自動で増える。
+function renderRivalStyles() {
+  const container = document.getElementById('rivalStyle');
+  container.replaceChildren(...[RANDOM_STYLE, ...STYLE_KEYS].map(key => {
+    const button = document.createElement('button');
+    button.dataset.value = key;
+    button.textContent = key === RANDOM_STYLE ? 'ランダム' : RIVAL_STYLES[key].name;
+    button.onclick = () => selectRivalStyle(key);
+    return button;
+  }));
 }
 
-document.querySelectorAll('#rivalStyle button').forEach(button => { button.onclick = () => selectRivalStyle(button.dataset.value); });
+function selectRivalStyle(value) {
+  rivalStyleKey = RIVAL_STYLES[value] ? value : RANDOM_STYLE;
+  rivalStyle = RIVAL_STYLES[rivalStyleKey] || DEFAULT_STYLE;
+  localStorage.setItem('firstBlastRivalStyle', rivalStyleKey);
+  document.querySelectorAll('#rivalStyle button').forEach(button => button.classList.toggle('selected', button.dataset.value === rivalStyleKey));
+  document.getElementById('styleHint').textContent = isRandomStyle() ? RANDOM_STYLE_DETAIL : rivalStyle.detail;
+  ui.setRivalStyle(isRandomStyle() ? { label: 'ランダム' } : rivalStyle);
+}
+
+// デュエルで実際に使うスタイル。武器もスタイルに紐づくので、戦い方と攻撃手段が一緒に変わる。
+function useDuelStyle(key) {
+  activeStyle = RIVAL_STYLES[key] || DEFAULT_STYLE;
+  activeWeapon = activeStyle.weapon || 'pulse';
+  ui.setRivalStyle(activeStyle);
+}
+
+function rollDuelStyle() {
+  rolledStyleKey = rollRivalStyle(rolledStyleKey);
+  useDuelStyle(rolledStyleKey);
+}
+
+function prepareDuelStyle() {
+  if (isRandomStyle()) rollDuelStyle();
+  else { rolledStyleKey = null; useDuelStyle(rivalStyleKey); }
+}
+
+renderRivalStyles();
 selectRivalStyle(rivalStyleKey);
 
 function ensureArena(value) {
@@ -153,6 +186,7 @@ function showCircuitCard() {
   mode = 'circuit';
   activeRival = CIRCUIT_RIVALS[circuitIndex];
   activeStyle = RIVAL_STYLES[activeRival.style];
+  activeWeapon = activeRival.weapon;
   ensureArena(activeRival.map);
   document.exitPointerLock?.();
   document.getElementById('hud').classList.add('hidden');
@@ -178,7 +212,7 @@ function showCircuitCard() {
     return node;
   }));
   config = { playerHp: 100, ...activeRival.config };
-  enemy.configure(config, activeStyle, activeRival.weapon);
+  enemy.configure(config, activeStyle, activeWeapon);
   enemy.respawn(RIVAL_SPAWN);
 }
 
@@ -192,7 +226,7 @@ function launchCircuitMatch() {
   gearDraft.reset();
   applyGearModifiers();
   player.configure(config.playerHp);
-  enemy.configure(config, activeStyle, activeRival.weapon);
+  enemy.configure(config, activeStyle, activeWeapon);
   enemy.gameEnded = false;
   ui.setRivalStyle({ label: activeRival.name });
   preparePlayView();
@@ -326,7 +360,8 @@ function startDuel() {
   ensureArena(arenaMapKey);
   mode = 'duel';
   activeRival = null;
-  activeStyle = rivalStyle;
+  rolledStyleKey = null;
+  prepareDuelStyle();
   roundTarget = 5;
   document.getElementById('again').textContent = 'もう一度';
   stats = freshStats();
@@ -337,8 +372,7 @@ function startDuel() {
   roundNumber = 1;
   config = DIFFICULTIES[difficultyKey];
   player.configure(config.playerHp);
-  enemy.configure(config, activeStyle, 'pulse');
-  ui.setRivalStyle(activeStyle);
+  enemy.configure(config, activeStyle, activeWeapon);
   enemy.gameEnded = false;
   preparePlayView();
   beginRound();
@@ -350,6 +384,7 @@ function startRange() {
   mode = 'range';
   activeRival = null;
   activeStyle = rivalStyle;
+  activeWeapon = 'pulse';
   roundTarget = 5;
   state = 'range';
   roundToken++;
@@ -380,7 +415,9 @@ async function beginRound() {
   const token = ++roundToken;
   state = 'countdown';
   enemy.gameEnded = false;
-  enemy.configure(config, activeStyle, activeRival?.weapon || 'pulse');
+  // ランダム指定なら毎ラウンド引き直す。同じ試合でも相手の戦い方と武器が入れ替わる。
+  if (mode === 'duel' && isRandomStyle()) rollDuelStyle();
+  enemy.configure(config, activeStyle, activeWeapon);
   player.respawn(PLAYER_SPAWN, 0);
   enemy.respawn(RIVAL_SPAWN);
   weapon.refillAll();
@@ -392,7 +429,8 @@ async function beginRound() {
   ui.update(player, weapon, enemy);
   effects.ring(PLAYER_SPAWN, 0x64c7ff);
   effects.ring(RIVAL_SPAWN, 0xff5b82);
-  ui.showBanner(`ラウンド ${roundNumber}`, `${roundTarget}本先取`);
+  const styleNote = mode === 'duel' && isRandomStyle() ? ` · ${activeStyle.name}（${activeStyle.label}）` : '';
+  ui.showBanner(`ラウンド ${roundNumber}`, `${roundTarget}本先取${styleNote}`);
   await delay(650);
   for (const count of ['3', '2', '1']) {
     if (token !== roundToken || state !== 'countdown') return;
@@ -537,8 +575,10 @@ function showMenu() {
   ['message', 'loadout', 'locker', 'contracts', 'settings', 'gearSelect', 'circuit'].forEach(id => setPanel(id, false));
   setPanel('start', true);
   activeRival = null;
+  rolledStyleKey = null;
   activeStyle = rivalStyle;
-  ui.setRivalStyle(rivalStyle);
+  activeWeapon = rivalStyle.weapon || 'pulse';
+  ui.setRivalStyle(isRandomStyle() ? { label: 'ランダム' } : rivalStyle);
   ensureArena(arenaMapKey);
   enemy.respawn(RIVAL_SPAWN);
   renderContracts();
@@ -630,7 +670,7 @@ renderLoadout();
 renderContracts();
 renderCircuitRecord();
 configureHudSlots();
-enemy.configure(config, rivalStyle, 'pulse');
+enemy.configure(config, rivalStyle, activeWeapon);
 ui.setRounds(0, 0, 1, 'DUEL', 5);
 loop();
 
