@@ -586,6 +586,12 @@ function showMenu() {
 }
 
 document.getElementById('menuButton').onclick = showMenu;
+// 左上の目のアイコン。ギア・キルログなど二次情報を隠して画面を広く見せる。
+document.getElementById('hudToggle').onclick = event => {
+  event.stopPropagation();
+  const lite = document.body.classList.toggle('hud-lite');
+  event.currentTarget.setAttribute('aria-label', lite ? '表示を戻す' : '表示を減らす');
+};
 document.getElementById('resultMenu').onclick = showMenu;
 document.getElementById('again').onclick = () => {
   if (mode !== 'circuit') { startDuel(); return; }

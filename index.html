@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <title>FIRST BLAST</title>
   <link rel="stylesheet" href="style.css">
+  <script>
+    // タッチ配置はCSSだけで決まるようにする。controls.js が付ける body.force-touch と
+    // 同じ条件をここで html にも付けておき、初回描画からズレないようにする。
+    if (matchMedia('(pointer: coarse)').matches || new URLSearchParams(location.search).has('forceTouch')) {
+      document.documentElement.classList.add('touch');
+    }
+  </script>
 </head>
 <body>
   <div id="game"></div>
@@ -104,7 +111,15 @@
 
   <div id="hud" class="hidden">
     <header class="match-header">
-      <div class="brand">FIRST <b>BLAST</b></div>
+      <div class="hud-system">
+        <button id="menuButton" class="hud-icon" aria-label="メニュー" title="メニュー">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M4.4 7h15.2M4.4 12h15.2M4.4 17h15.2"/></svg>
+        </button>
+        <button id="hudToggle" class="hud-icon" aria-label="表示を減らす" title="表示を減らす">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M1.9 12S5.6 5.6 12 5.6 22.1 12 22.1 12 18.4 18.4 12 18.4 1.9 12 1.9 12z"/><circle cx="12" cy="12" r="3"/><path class="eye-slash" d="M4.6 4.6 19.4 19.4"/></svg>
+        </button>
+        <div class="brand">FIRST <b>BLAST</b></div>
+      </div>
       <div class="scoreboard">
         <div class="score-side blue">
           <i class="score-avatar" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4.2"/><path d="M3.6 21.5a8.4 8.4 0 0 1 16.8 0z"/></svg></i>
@@ -124,7 +139,6 @@
           <i id="rivalRoundDots" class="score-pips"></i>
         </div>
       </div>
-      <button id="menuButton" class="hud-menu">メニュー</button>
     </header>
 
     <div id="roundBanner" class="round-banner hidden"><b></b><small></small></div>
@@ -141,8 +155,10 @@
       <small id="buffs"></small>
     </div>
     <div class="ammo">
-      <span id="weaponName">パルスライフル</span>
-      <div class="ammo-count"><b id="ammo">24</b><small id="ammoMax">/24</small></div>
+      <div class="ammo-line">
+        <span id="weaponName">パルスライフル</span>
+        <div class="ammo-count"><b id="ammo">24</b><small id="ammoMax">/24</small></div>
+      </div>
       <small id="reloadText"></small>
     </div>
     <div id="gearHud" class="gear-hud"></div>
