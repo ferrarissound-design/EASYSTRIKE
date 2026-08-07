@@ -13,6 +13,16 @@
   --fire-bottom: 24px;
   /* 右下の操作ボタンは真四角に積まず、上の段ほど内側へずらして弧を描かせる。 */
   --hud-arc: 9px;
+  /* 左端の縦並び（体力→スティック→武器スロット→ギア）と左上アイコンの寸法。
+     狭い画面ではこの値だけを差し替え、位置の計算式は共通のまま保つ。 */
+  --hud-icon-size: 38px;
+  --hud-stack: 38px;
+  /* スティックは画面の短辺に追従させる。320px級の端末で幅の4割を占めて、
+     ボタンを大きくした設定と重なるのを防ぐ。 */
+  --stick-size: clamp(92px, 30vmin, 124px);
+  --stick-bottom: 52px;
+  /* リロードを縦に逃がした狭い画面で、残弾表示を持ち上げる分。 */
+  --ammo-lift: 0px;
   /* 試合中UIの共通トーン。ほぼ黒の半透明ガラスに細い白フチ。 */
   --hud-glass: #101014a8;
   --hud-glass-solid: #0e0e12d4;
@@ -98,7 +108,7 @@ button:focus-visible { outline: 3px solid #75efff; outline-offset: 3px; }
 .match-header { position: fixed; z-index: 12; top: calc(12px + env(safe-area-inset-top)); left: calc(16px + env(safe-area-inset-left)); right: calc(16px + env(safe-area-inset-right)); display: flex; align-items: flex-start; pointer-events: none; }
 /* 写真と同じく、システム操作は左上に小さなアイコンだけでまとめる。 */
 .hud-system { display: flex; align-items: center; gap: 8px; }
-.hud-icon { display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border-radius: 12px; background: var(--hud-glass); box-shadow: inset 0 0 0 1px var(--hud-stroke); backdrop-filter: blur(6px); pointer-events: auto; }
+.hud-icon { display: grid; place-items: center; width: var(--hud-icon-size); height: var(--hud-icon-size); padding: 0; border-radius: 12px; background: var(--hud-glass); box-shadow: inset 0 0 0 1px var(--hud-stroke); backdrop-filter: blur(6px); pointer-events: auto; }
 .hud-icon .icon { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 2px #0009); }
 .hud-icon:active { background: var(--hud-press); transform: scale(.94); }
 .hud-icon .eye-slash { opacity: 0; }
@@ -109,8 +119,10 @@ button:focus-visible { outline: 3px solid #75efff; outline-offset: 3px; }
 .brand { align-self: center; font-size: 18px; font-weight: 800; text-shadow: 0 2px 5px #000; }
 .brand b { color: #70eaff; }
 /* 本家の上部表示。青タイル / 中央の時計ピル / 黄タイル が離れて並ぶ。 */
-.scoreboard { position: absolute; left: 50%; top: 0; transform: translateX(-50%); display: flex; align-items: stretch; gap: 7px; }
-.score-side { --team: var(--team-blue); position: relative; display: grid; grid-template-columns: auto auto; align-items: center; justify-content: center; column-gap: 8px; min-width: 96px; padding: 6px 12px 12px; border-radius: 12px; background: linear-gradient(180deg, color-mix(in srgb, var(--team) 82%, #05070f), color-mix(in srgb, var(--team) 55%, #05070f)); box-shadow: 0 6px 18px #0006, inset 0 1px #ffffff42; }
+/* 左上のアイコン列に食い込まないよう、中央のスコアには必ず左右の余白を残す。
+   タイルは幅が足りなければ縮み、名前は ellipsis で丸める。 */
+.scoreboard { position: absolute; left: 50%; top: 0; transform: translateX(-50%); display: flex; align-items: stretch; gap: 7px; max-width: calc(100% - 2 * var(--hud-icon-size) - 24px); }
+.score-side { --team: var(--team-blue); position: relative; display: grid; grid-template-columns: auto auto; align-items: center; justify-content: center; column-gap: 8px; width: 96px; min-width: 0; flex: 0 1 auto; overflow: hidden; padding: 6px 12px 12px; border-radius: 12px; background: linear-gradient(180deg, color-mix(in srgb, var(--team) 82%, #05070f), color-mix(in srgb, var(--team) 55%, #05070f)); box-shadow: 0 6px 18px #0006, inset 0 1px #ffffff42; }
 .score-side.yellow { --team: var(--team-yellow); direction: rtl; }
 .score-side.yellow > * { direction: ltr; }
 .score-avatar { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: #0b0d16b0; box-shadow: inset 0 0 0 1.5px #ffffff40; }
@@ -120,7 +132,7 @@ button:focus-visible { outline: 3px solid #75efff; outline-offset: 3px; }
 .score-pips { position: absolute; left: 10px; right: 10px; bottom: 5px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; }
 .score-pips s { height: 3px; border-radius: 6px; background: #0a0d1866; }
 .score-side .score-pips s.on { background: #fff; }
-.round-clock { display: grid; place-content: center; min-width: 74px; padding: 6px 11px 8px; text-align: center; border-radius: 12px; background: var(--hud-glass-solid); box-shadow: 0 6px 18px #0006, inset 0 0 0 1px var(--hud-stroke); }
+.round-clock { display: grid; place-content: center; width: 74px; min-width: 0; flex: 0 1 auto; overflow: hidden; padding: 6px 11px 8px; text-align: center; border-radius: 12px; background: var(--hud-glass-solid); box-shadow: 0 6px 18px #0006, inset 0 0 0 1px var(--hud-stroke); }
 .round-clock b { font-size: 21px; font-variant-numeric: tabular-nums; line-height: 1.15; }
 .round-clock small, .round-clock em { display: block; white-space: nowrap; }
 .round-clock small { color: var(--hud-dim); font-size: 8px; font-weight: 900; letter-spacing: .06em; }
@@ -223,8 +235,9 @@ button:focus-visible { outline: 3px solid #75efff; outline-offset: 3px; }
 
 #mobile > * { position: fixed; z-index: 10; }
 #look { inset: 0 0 0 40%; z-index: 6; }
-#stick { left: calc(22px + env(safe-area-inset-left)); bottom: calc(28px + env(safe-area-inset-bottom)); width: 128px; height: 128px; border: 2px solid #ffffff4d; border-radius: 50%; background: #ffffff14; }
-#stick i { position: absolute; left: 35px; top: 35px; width: 52px; height: 52px; border-radius: 50%; background: #ffffff8c; box-shadow: 0 2px 8px #0006; }
+#stick { left: calc(22px + env(safe-area-inset-left)); bottom: calc(28px + env(safe-area-inset-bottom)); width: var(--stick-size); height: var(--stick-size); border: 2px solid #ffffff4d; border-radius: 50%; background: #ffffff14; }
+/* つまみは常に中央から。スティックの直径が変わっても位置がずれないようにする。 */
+#stick i { position: absolute; left: calc(50% - 26px); top: calc(50% - 26px); width: 52px; height: 52px; border-radius: 50%; background: #ffffff8c; box-shadow: 0 2px 8px #0006; }
 /* 本家風のタッチ操作。文字は置かず、半透明のほぼ黒い円に白いアイコンだけを載せる。 */
 #mobile button { display: grid; place-items: center; width: var(--button-size); height: var(--button-size); border-radius: 50%; border: 1.5px solid var(--hud-stroke); background: var(--hud-glass); box-shadow: 0 5px 14px #00000059; backdrop-filter: blur(6px); font-size: 0; opacity: .9; }
 #mobile button .icon { width: 46%; height: 46%; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 2px #0009); }
@@ -234,7 +247,8 @@ button:focus-visible { outline: 3px solid #75efff; outline-offset: 3px; }
 #crouch { right: calc(18px + var(--hud-arc) + env(safe-area-inset-right)); bottom: calc(var(--fire-bottom) + var(--fire-button-size) + 12px + env(safe-area-inset-bottom)); }
 #aim { right: calc(30px + var(--fire-button-size) + var(--hud-arc) * 1.4 + env(safe-area-inset-right)); bottom: calc(var(--jump-bottom) + var(--jump-button-size) + 12px + env(safe-area-inset-bottom)); }
 #reload, #quickMelee, #quickUtility { width: calc(var(--button-size) * .62) !important; height: calc(var(--button-size) * .62) !important; }
-#reload { right: calc(42px + var(--fire-button-size) + var(--jump-button-size) + env(safe-area-inset-right)); bottom: calc(var(--jump-bottom) + 6px + env(safe-area-inset-bottom)); }
+/* リロードは弧のいちばん内側。体力バーの帯を避けて一段持ち上げる。 */
+#reload { right: calc(42px + var(--fire-button-size) + var(--jump-button-size) + env(safe-area-inset-right)); bottom: calc(var(--jump-bottom) + 30px + env(safe-area-inset-bottom)); }
 #quickMelee { right: calc(30px + var(--fire-button-size) + var(--hud-arc) * 3 + env(safe-area-inset-right)); bottom: calc(var(--jump-bottom) + var(--jump-button-size) + var(--button-size) + 22px + env(safe-area-inset-bottom)); }
 #quickUtility { right: calc(18px + var(--hud-arc) * 2.4 + env(safe-area-inset-right)); bottom: calc(var(--fire-bottom) + var(--fire-button-size) + var(--button-size) + 22px + env(safe-area-inset-bottom)); }
 body[data-jump-position="low"] { --jump-bottom: 14px; }
@@ -257,7 +271,7 @@ body[data-fire-position="high"] { --fire-bottom: 48px; }
 :is(.touch, .force-touch) #mobile { display: block !important; }
 :is(.touch, .force-touch) .brand { display: none; }
 /* スティックは体力バーの分だけ持ち上げる。 */
-:is(.touch, .force-touch) #stick { bottom: calc(52px + env(safe-area-inset-bottom)); }
+:is(.touch, .force-touch) #stick { bottom: calc(var(--stick-bottom) + env(safe-area-inset-bottom)); }
 /* 体力は写真同様、画面のいちばん下を走る細い横バー。数字はバーの右端に添える。 */
 :is(.touch, .force-touch) .health {
   top: auto; bottom: calc(12px + env(safe-area-inset-bottom)); width: min(300px, 46vw);
@@ -268,13 +282,22 @@ body[data-fire-position="high"] { --fire-bottom: 48px; }
 /* ラベルの「HP」は文字を消し、数字だけを残す。 */
 :is(.touch, .force-touch) .health label { order: 2; margin: 0; font-size: 0; }
 :is(.touch, .force-touch) .health label b { margin: 0; font-size: 15px; font-variant-numeric: tabular-nums; }
-:is(.touch, .force-touch) .gear-hud { left: calc(14px + env(safe-area-inset-left)); bottom: calc(196px + env(safe-area-inset-bottom)); }
+/* ギア表示は左上のアイコンの下。左端の下半分はスティックと武器スロットで埋まるため、
+   触らない情報だけを上に逃がす。 */
+:is(.touch, .force-touch) .gear-hud { left: calc(16px + env(safe-area-inset-left)); top: calc(24px + var(--hud-stack) + env(safe-area-inset-top)); bottom: auto; }
 /* 残弾はボタン群の真上。ボタンの高さは設定で変わるため #quickUtility と同じ式に揃える。 */
-:is(.touch, .force-touch) .ammo { top: auto; bottom: calc(var(--fire-bottom) + var(--fire-button-size) + var(--button-size) * 1.62 + 34px + env(safe-area-inset-bottom)); }
+:is(.touch, .force-touch) .ammo { top: auto; bottom: calc(var(--fire-bottom) + var(--fire-button-size) + var(--button-size) * 1.62 + var(--ammo-lift) + 34px + env(safe-area-inset-bottom)); }
 :is(.touch, .force-touch) .ammo b { font-size: 34px; }
 :is(.touch, .force-touch) .ammo-count small { font-size: 14px; }
 :is(.touch, .force-touch) .ammo-line { gap: 7px; }
-:is(.touch, .force-touch) .weapon-slots { bottom: calc(22px + env(safe-area-inset-bottom)); gap: 7px; }
+/* 武器スロットは画面の高さによらず必ず左端。スティックの真上に固定して、
+   下中央へ退避させない（退避すると射撃ボタンや体力バーと重なる）。 */
+:is(.touch, .force-touch) .weapon-slots {
+  left: calc(12px + env(safe-area-inset-left)); right: auto; top: auto;
+  bottom: calc(var(--stick-bottom) + var(--stick-size) + 16px + env(safe-area-inset-bottom));
+  transform: none; display: grid; grid-template-columns: repeat(2, auto); gap: 9px 8px;
+}
+:is(.touch, .force-touch) .weapon-slots button:nth-child(even) { margin-top: 17px; }
 :is(.touch, .force-touch) .weapon-slots button { width: 44px; min-width: 0; height: 44px; padding: 0; border-radius: 50%; font-size: 0; }
 :is(.touch, .force-touch) .weapon-slots button b { font-size: 13px; }
 :is(.touch, .force-touch) .weapon-slots button small { display: none; }
@@ -285,30 +308,32 @@ body[data-fire-position="high"] { --fire-bottom: 48px; }
 :is(.touch, .force-touch).left-handed .health small { text-align: right; }
 :is(.touch, .force-touch).left-handed .health > div { order: 2; }
 :is(.touch, .force-touch).left-handed .health label { order: 1; }
-:is(.touch, .force-touch).left-handed .gear-hud { left: auto; right: calc(14px + env(safe-area-inset-right)); justify-items: end; }
+:is(.touch, .force-touch).left-handed .gear-hud { left: auto; right: calc(16px + env(safe-area-inset-right)); justify-items: end; }
 :is(.touch, .force-touch).left-handed .ammo { right: auto; left: calc(22px + env(safe-area-inset-left)); text-align: left; }
 :is(.touch, .force-touch).left-handed .ammo-line { justify-content: flex-start; flex-direction: row-reverse; }
+:is(.touch, .force-touch).left-handed .weapon-slots { left: auto; right: calc(12px + env(safe-area-inset-right)); }
+:is(.touch, .force-touch).left-handed .weapon-slots button:nth-child(even) { margin-top: 0; }
+:is(.touch, .force-touch).left-handed .weapon-slots button:nth-child(odd) { margin-top: 17px; }
 
 @media (pointer: coarse) {
   .panel small { display: none; }
 }
 
-/* 横持ちの短い画面では武器スロットが下中央に残るため、体力バーを短くして間を空ける。 */
+/* 横持ちの短い画面。左端は 体力→スティック→武器スロット の順で埋まりきるため、
+   スティックを一回り小さくし、ギア表示は体力バーの右へ横並びで逃がす。 */
 @media (max-height: 559px) {
   :is(.touch, .force-touch) .health { width: min(230px, 34vw); }
 }
-
-/* 縦に余裕がある端末では、写真の左側のボタン群に倣って武器スロットを画面左中央へ。
-   2列の千鳥に組んで弧を作る。横持ちの短い画面ではスティックに重なるため下中央のまま。 */
-@media (min-height: 560px) {
-  :is(.touch, .force-touch) .weapon-slots {
-    left: calc(12px + env(safe-area-inset-left)); top: 46%; bottom: auto; transform: translateY(-50%);
-    display: grid; grid-template-columns: repeat(2, auto); gap: 9px 8px;
-  }
-  :is(.touch, .force-touch) .weapon-slots button:nth-child(even) { margin-top: 17px; }
-  :is(.touch, .force-touch).left-handed .weapon-slots { left: auto; right: calc(12px + env(safe-area-inset-right)); }
-  :is(.touch, .force-touch).left-handed .weapon-slots button:nth-child(even) { margin-top: 0; }
-  :is(.touch, .force-touch).left-handed .weapon-slots button:nth-child(odd) { margin-top: 17px; }
+@media (max-height: 460px) {
+  :root { --stick-size: 92px; --stick-bottom: 50px; --ammo-lift: -10px; }
+  :is(.touch, .force-touch) .gear-hud { top: auto; bottom: calc(12px + env(safe-area-inset-bottom)); left: calc(28px + min(230px, 34vw) + env(safe-area-inset-left)); grid-auto-flow: column; }
+  :is(.touch, .force-touch).left-handed .gear-hud { left: auto; right: calc(28px + min(230px, 34vw) + env(safe-area-inset-right)); }
+  /* 縦が足りないので武器スロットは千鳥をやめて一回り小さく、残弾は武器名を落として数字だけにする。 */
+  :is(.touch, .force-touch) .weapon-slots button { width: 38px; height: 38px; }
+  :is(.touch, .force-touch) .weapon-slots button:nth-child(even),
+  :is(.touch, .force-touch).left-handed .weapon-slots button:nth-child(odd) { margin-top: 0; }
+  :is(.touch, .force-touch) .ammo span { display: none; }
+  :is(.touch, .force-touch) .ammo b { font-size: 27px; }
 }
 
 @media (max-width: 760px) {
@@ -316,12 +341,11 @@ body[data-fire-position="high"] { --fire-bottom: 48px; }
   .gear-choices { grid-template-columns: 1fr; }
   .gear-choice { min-height: 118px; padding: 15px; }
   .gear-choice i { width: 42px; height: 42px; margin-bottom: 8px; }
-  .score-side { min-width: 84px; padding: 6px 10px 12px; gap: 7px; }
+  .score-side { width: 84px; padding: 6px 10px 12px; gap: 7px; }
   .score-side b { font-size: 22px; }
   .score-avatar { width: 26px; height: 26px; }
   .score-avatar svg { width: 18px; height: 18px; }
-  .score-side span { top: 35px; }
-  .round-clock { min-width: 66px; }
+  .round-clock { width: 66px; }
   .round-clock b { font-size: 18px; }
   .brand { font-size: 12px; }
   .loadout-grid { grid-template-columns: repeat(2, 1fr); }
@@ -329,23 +353,51 @@ body[data-fire-position="high"] { --fire-bottom: 48px; }
   .menu-card, .wide-card, .result-card { padding: 24px 17px; }
 }
 
-/* 狭い画面では、中央のスコアが右上のメニューボタンに被らないところまで詰める。 */
+/* 狭い画面では、中央のスコアが左上のアイコン列に被らないところまで詰める。 */
 @media (max-width: 560px) {
-  .score-side { min-width: 74px; padding: 5px 9px 11px; column-gap: 6px; }
+  .scoreboard { gap: 5px; }
+  .score-side { width: 74px; padding: 5px 9px 11px; column-gap: 6px; }
   .score-side b { font-size: 20px; }
   .score-side span { max-width: 76px; font-size: 7px; }
   .score-avatar { width: 24px; height: 24px; }
   .score-avatar svg { width: 17px; height: 17px; }
   .score-pips { left: 8px; right: 8px; }
-  .round-clock { min-width: 60px; padding: 5px 8px 7px; }
+  .round-clock { width: 60px; padding: 5px 8px 7px; }
   .round-clock b { font-size: 17px; }
 }
 
-/* 幅が足りない画面では、左上のアイコンを縦に積んで中央のスコアと離す。 */
+/* 幅が足りない画面では、左上のアイコンを縦に積んで中央のスコアと離す。
+   --hud-stack はアイコン列の高さ。ギア表示の開始位置がこれに追従する。 */
 @media (max-width: 500px) {
+  :root { --hud-icon-size: 34px; --hud-stack: 75px; }
   .hud-system { flex-direction: column; align-items: flex-start; gap: 7px; }
-  .hud-icon { width: 34px; height: 34px; border-radius: 11px; }
+  .hud-icon { border-radius: 11px; }
   .hud-icon .icon { width: 19px; height: 19px; }
+}
+
+/* iPhoneのSafariのように実表示が320px級まで詰まる画面。スコアをさらに小さくし、
+   リロードは下段だとスティックに重なるので、内側の列のいちばん上へ移す。 */
+@media (max-width: 400px) {
+  .score-side { width: 62px; padding: 5px 7px 10px; column-gap: 5px; }
+  .score-side b { font-size: 18px; }
+  .score-side span { max-width: 58px; }
+  .score-avatar { width: 21px; height: 21px; }
+  .score-avatar svg { width: 15px; height: 15px; }
+  .round-clock { width: 52px; padding: 5px 6px 7px; }
+  .round-clock b { font-size: 15px; }
+  .round-clock small { font-size: 7px; }
+  :root { --ammo-lift: calc(var(--button-size) * .62 + 12px); }
+  /* 内側の列を1段増やして、下段からリロード・近接の順に積む。 */
+  #reload {
+    right: calc(30px + var(--fire-button-size) + var(--hud-arc) * 3 + env(safe-area-inset-right));
+    bottom: calc(var(--jump-bottom) + var(--jump-button-size) + var(--button-size) + 22px + env(safe-area-inset-bottom));
+  }
+  #quickMelee {
+    right: calc(30px + var(--fire-button-size) + var(--hud-arc) * 3.4 + env(safe-area-inset-right));
+    bottom: calc(var(--jump-bottom) + var(--jump-button-size) + var(--button-size) * 1.62 + 34px + env(safe-area-inset-bottom));
+  }
+  .left-handed #reload { right: auto; left: calc(30px + var(--fire-button-size) + var(--hud-arc) * 3 + env(safe-area-inset-left)); }
+  .left-handed #quickMelee { right: auto; left: calc(30px + var(--fire-button-size) + var(--hud-arc) * 3.4 + env(safe-area-inset-left)); }
 }
 
 @media (max-width: 500px), (orientation: portrait) {

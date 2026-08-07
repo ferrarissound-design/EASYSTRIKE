@@ -76,8 +76,11 @@ export class Controls {
       const x = event.clientX - rect.left - rect.width / 2;
       const y = event.clientY - rect.top - rect.height / 2;
       const length = Math.hypot(x, y);
-      const ratio = Math.min(42, length) / (length || 1);
-      this.move = { x: x / 42 * ratio, y: -y / 42 * ratio };
+      // 可動域は見た目の直径から取る。狭い画面でスティックが小さくなっても、
+      // つまみが枠から飛び出さず、倒し切りの位置も枠と一致する。
+      const travel = rect.width * .33 || 42;
+      const ratio = Math.min(travel, length) / (length || 1);
+      this.move = { x: x / travel * ratio, y: -y / travel * ratio };
       knob.style.transform = `translate(${x * ratio}px,${y * ratio}px)`;
     };
     stick.onpointerup = stick.onpointercancel = () => {
