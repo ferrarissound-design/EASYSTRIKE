@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { enemyWeaponFor } from './enemyWeapons.js';
 import { resolveEnemyMove } from './enemyMovement.js';
+import { DEFAULT_STYLE, styleForHp } from './rivalStyles.js';
+import { rollTactic, tacticById, tacticDuration, steerLean } from './enemyTactics.js';
 import { MOBILE_TUNING } from './mobileTuning.js';
 import { bodyBlocked, ceilingAbove, climbableTop, supportBelow, STEP_HEIGHT, jumpReach } from './collision.js';
 import { surfaceMaterial } from './graphics.js';
@@ -177,11 +179,20 @@ export class Enemy {
       : direction.clone().negate();
     this.thinkTimer=.4;
   }
+  // 戦術を引き直す。同じ戦術が続いても回る向きは変えて、いつも同じ弧を描かないようにする。
+  pickTactic(style){
+    this.tacticKey=rollTactic(style.tactics);
+    const tactic=tacticById(this.tacticKey);
+    this.tacticTimer=tacticDuration(tactic);
+    this.flipTimer=tactic.flip||0;
+    if(Math.random()<.5)this.strafeDirection*=-1;
+    return tactic;
+  }
   fire(player){const weapon=this.currentWeapon();this.muzzle.getWorldPosition(this.muzzleWorld);const accuracy=Math.min(.97,Math.max(.25,this.config.accuracy+(this.style?.accuracyBonus||0))),spread=(1-accuracy)*.12*weapon.spread;for(let pellet=0;pellet<weapon.pellets;pellet++){const shot=this.shots.find(candidate=>!candidate.active);if(!shot)break;const direction=player.position.clone().sub(this.muzzleWorld).normalize();direction.x+=(Math.random()-.5)*spread;direction.y+=(Math.random()-.5)*spread;direction.z+=(Math.random()-.5)*spread;direction.normalize();shot.active=true;shot.life=2.4;shot.damage=Math.max(1,Math.round(this.config.attack*weapon.damageScale));shot.color=weapon.color;shot.mesh.material.color.setHex(weapon.color);shot.mesh.scale.setScalar(weapon.size);shot.mesh.visible=true;shot.mesh.position.copy(this.muzzleWorld);shot.velocity.copy(direction).multiplyScalar(weapon.speed);this.effects.tracer(this.muzzleWorld.clone(),this.muzzleWorld.clone().addScaledVector(direction,2.2),weapon.color)}}
   updateShots(dt,player,onShot){for(const shot of this.shots){if(!shot.active)continue;shot.life-=dt;const previous=shot.mesh.position.clone(),step=shot.velocity.clone().multiplyScalar(dt),distance=step.length(),direction=step.clone().normalize();this.ray.set(previous,direction);const blocker=this.ray.intersectObjects(this.obstacles,false)[0];if(blocker&&blocker.distance<=distance){this.effects.burst(blocker.point,shot.color,2,.07,.16);shot.active=false;shot.mesh.visible=false;continue}shot.mesh.position.add(step);const segment=new THREE.Line3(previous,shot.mesh.position),closest=segment.closestPointToPoint(player.position,true,new THREE.Vector3());if(closest.distanceTo(player.position)<.58){onShot(shot.damage,previous);shot.active=false;shot.mesh.visible=false;continue}if(shot.life<=0){shot.active=false;shot.mesh.visible=false}}}
   clearShots(){this.shots?.forEach(shot=>{shot.active=false;shot.mesh.visible=false})}
   displace(direction,distance=.55){if(!this.alive)return;const flat=direction.clone().setY(0);if(flat.lengthSq()>.001)this.safeMove(flat.normalize(),distance)}
-  update(dt,player,onShot){this.animate(dt);this.updateShots(dt,player,onShot);if(!this.alive)return;this.thinkTimer-=dt;this.shotTimer-=dt;const toPlayer=player.position.clone().sub(this.group.position),distance=toPlayer.length(),visible=this.canSeePlayer(player);this.group.lookAt(player.position.x,this.group.position.y,player.position.z);
+  update(dt,player,onShot){this.animate(dt);this.updateShots(dt,player,onShot);if(!this.alive)return;this.thinkTimer-=dt;this.shotTimer-=dt;this.tacticTimer-=dt;this.flipTimer-=dt;const toPlayer=player.position.clone().sub(this.group.position),distance=toPlayer.length(),visible=this.canSeePlayer(player);this.group.lookAt(player.position.x,this.group.position.y,player.position.z);
     this.revealTimer=Math.max(0,(this.revealTimer||0)-dt);this.visibleToPlayer=visible||this.revealTimer>0; // HUNTERギア中は遮蔽物越しでも短時間追跡する。
     this.seenTime=visible?this.seenTime+dt:0;                        // プレイヤーを見続けた実時間。これが反応時間を超えると命中させられる。
     // プレイヤーが自分より高い場所にいる間だけ、前が塞がったら登る。平地では跳ねない。
@@ -190,14 +201,23 @@ export class Enemy {
     if(this.moveDirection){const before=this.group.position.clone();const move=this.safeMove(this.moveDirection,this.moveSpeed*dt);this.moving=before.distanceToSquared(this.group.position)>1e-6;if(move.deflected&&this.climbing)this.tryClimb(this.moveDirection);this.escapeStall(dt,move.moved)}
     this.resolveVertical(dt);
     if(this.thinkTimer>0)return;this.thinkTimer=.16;                // 進む向きと射撃の判断だけを一定間隔で行い、移動自体は毎フレーム続ける。
-    const baseStyle=this.style||{preferredMin:7,preferredMax:12,speed:1,burst:3,burstPause:.85,reactionScale:1};let style=baseStyle;if(baseStyle.adaptive){const ratio=this.hp/this.maxHp;style=ratio>.66?{preferredMin:13,preferredMax:22,speed:.94,burst:1,burstPause:.62,reactionScale:.92}:ratio>.33?{preferredMin:7,preferredMax:12,speed:1.05,burst:3,burstPause:.7,reactionScale:.86}:{preferredMin:3.5,preferredMax:8,speed:1.2,burst:1,burstPause:.45,reactionScale:.72}}// 間合いは水平距離で測る。高低差を足すと、真上に登られただけで「近すぎる」と誤判定して下がってしまう。
-    const flatDistance=Math.hypot(toPlayer.x,toPlayer.z),forward=toPlayer.setY(0).normalize(),direction=forward.clone();let goal='fight',lowHp=this.hp<=this.maxHp*.3;
-    if(lowHp){direction.negate();goal='retreat'}else if(flatDistance>style.preferredMax)goal='approach';else if(flatDistance<style.preferredMin){direction.negate();goal='retreat'}else{direction.set(-forward.z,0,forward.x).multiplyScalar(this.strafeDirection)}if(!visible&&goal==='fight'){direction.copy(forward);goal='approach'}
-    // 高所に登られたら、横に回り込まず正面から詰めて登り口を探す。
-    if(this.climbing&&!lowHp){direction.copy(forward);goal='approach'}
-    this.moveDirection=direction;this.moveSpeed=this.config.enemySpeed*style.speed*(goal==='retreat'?1.2:1);
-    if(Math.random()<this.config.jump*.16&&!this.airborne)this.velocityY=JUMP_FORCE*.62;   // 回避の小ジャンプ。
-    if(visible&&distance<FIRE_RANGE&&this.shotTimer<=0&&this.seenTime>this.config.reaction*style.reactionScale){const weapon=this.currentWeapon(),burst=weapon.burst||style.burst;if(this.burstShots>=burst){this.shotTimer=weapon.pause||style.burstPause;this.burstShots=0;this.strafeDirection*=-1;return}this.shotTimer=weapon.rate+this.config.reaction*.08;this.burstShots++;this.muzzleFlash();this.fire(player)}}
+    const style=styleForHp(this.style||DEFAULT_STYLE,this.hp/this.maxHp);
+    // 戦術は数秒ごとに引き直す。スタイルが「どこで戦うか」、戦術が「今どう動くか」を決める。
+    if(this.tacticTimer<=0||!this.tacticKey)this.pickTactic(style);
+    const tactic=tacticById(this.tacticKey);
+    if(tactic.flip&&this.flipTimer<=0){this.strafeDirection*=-1;this.flipTimer=tactic.flip}   // 切り返し系だけは短い周期で左右を入れ替える。
+    // 間合いは水平距離で測る。高低差を足すと、真上に登られただけで「近すぎる」と誤判定して下がってしまう。
+    const flatDistance=Math.hypot(toPlayer.x,toPlayer.z),forward=toPlayer.setY(0).normalize(),lateral=new THREE.Vector3(-forward.z,0,forward.x);
+    let goal='fight',lowHp=this.hp<=this.maxHp*.3;
+    if(lowHp)goal='retreat';else if(flatDistance>style.preferredMax)goal='approach';else if(flatDistance<style.preferredMin)goal='retreat';
+    if(!visible&&goal==='fight')goal='approach';                                             // 見失ったら詰めて探す。
+    if(this.climbing&&!lowHp)goal='approach';                                                // 高所に登られたら、横に回り込まず正面から詰めて登り口を探す。
+    const lean=steerLean(tactic.lean,goal),side=this.climbing&&goal==='approach'?0:tactic.side*this.strafeDirection;
+    const direction=forward.clone().multiplyScalar(lean).addScaledVector(lateral,side);
+    if(direction.lengthSq()<1e-4){this.moveDirection=null;this.moveSpeed=0;this.moving=false} // 「据え撃ち」。その場に留まって撃つ。
+    else{this.moveDirection=direction.normalize();this.moveSpeed=this.config.enemySpeed*style.speed*tactic.speed*(goal==='retreat'?1.2:1)}
+    if(Math.random()<this.config.jump*.16*tactic.jump&&!this.airborne)this.velocityY=JUMP_FORCE*.62;   // 回避の小ジャンプ。
+    if(visible&&distance<FIRE_RANGE&&this.shotTimer<=0&&this.seenTime>this.config.reaction*style.reactionScale){const weapon=this.currentWeapon(),burst=weapon.burst||style.burst;if(this.burstShots>=burst){this.shotTimer=(weapon.pause||style.burstPause)*tactic.firePause;this.burstShots=0;this.strafeDirection*=-1;return}this.shotTimer=weapon.rate+this.config.reaction*.08;this.burstShots++;this.muzzleFlash();this.fire(player)}}
   flash(hit){this.highlight.uniforms.glowColor.value.set(hit?0xffffff:0xff5545);this.highlight.uniforms.rimStrength.value=hit?1.7:.95;this.highlight.uniforms.fill.value=hit?.35:.07}
   damage(amount){if(!this.alive)return;this.hp-=amount;const token=++this.flashToken;this.tint(0x88ffff);this.flash(true);this.setFace('hurt');setTimeout(()=>{if(this.alive&&token===this.flashToken){this.untint();this.flash(false);this.setFace('normal')}},160);if(this.hp<=0)this.die()}
   // 撃破。白フラッシュは一瞬だけにして、飛び散るパーツはアバター本来の色で見せる。
@@ -209,5 +229,7 @@ export class Enemy {
     this.parts.forEach(part=>{part.mesh.position.copy(part.rest);part.mesh.rotation.set(0,0,0)});this.gun.rotation.x=-AIM_ARM;this.exploding=0;
     this.upper.position.y=0;this.legs.forEach(leg=>leg.rotation.set(0,0,0));this.arms[0].rotation.set(0,0,0);this.arms[1].rotation.set(AIM_ARM,0,0);
     this.untint();this.flash(false);this.setFace('normal');this.flashToken++;
-    this.hp=this.maxHp||100;this.alive=true;this.recoil=0;this.moving=false;this.animTime=0;this.moveDirection=null;this.moveSpeed=0;this.velocityY=0;this.airborne=false;this.stuckTimer=0;this.stuckCount=0;this.climbing=false;this.thinkTimer=.25;this.shotTimer=Math.max(.55,(this.config?.reaction??.6)+.35);this.seenTime=0;this.burstShots=0;this.visibleToPlayer=false;this.revealTimer=0;this.strafeDirection=Math.random()<.5?-1:1;this.effects?.ring(safe,0x7eeeff)}
+    this.hp=this.maxHp||100;this.alive=true;this.recoil=0;this.moving=false;this.animTime=0;this.moveDirection=null;this.moveSpeed=0;this.velocityY=0;this.airborne=false;this.stuckTimer=0;this.stuckCount=0;this.climbing=false;this.thinkTimer=.25;this.shotTimer=Math.max(.55,(this.config?.reaction??.6)+.35);this.seenTime=0;this.burstShots=0;this.visibleToPlayer=false;this.revealTimer=0;this.strafeDirection=Math.random()<.5?-1:1;
+    this.tacticKey=null;this.tacticTimer=0;this.flipTimer=0;                    // 最初のthinkで引き直す。ラウンドごとに動き出しが変わる。
+    this.effects?.ring(safe,0x7eeeff)}
 }
