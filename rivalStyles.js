@@ -5,36 +5,43 @@ export const RIVAL_STYLES = {
     id: 'brawler', name: 'ラッシュ', label: '突撃型', detail: '一気に距離を詰め、散弾で押し切る', weapon: 'scatter',
     preferredMin: 3.5, preferredMax: 8, speed: 1.13, burst: 4, burstPause: .55, reactionScale: .86, accuracyBonus: -.05,
     tactics: { press: 4, juke: 2.5, hop: 2, strafe: 1.4, flank: 1, backstep: .4 },
+    look: { shirt: 0xc4281c, pants: 0x25355e, skin: 0xf5cd30, metal: 0x2b3038, accessory: 'spikes' },
   },
   tactician: {
     id: 'tactician', name: 'マインド', label: '戦術型', detail: '遮蔽物を使って左右に動き、状況に対応する', weapon: 'pulse',
     preferredMin: 7, preferredMax: 12, speed: 1, burst: 3, burstPause: .85, reactionScale: 1, accuracyBonus: 0,
     tactics: { strafe: 3, flank: 2.4, backstep: 1.8, press: 1.4, hold: 1, juke: 1 },
+    look: { shirt: 0x2f6b4f, pants: 0x1c2b22, skin: 0xf5cd30, metal: 0x2b3038, accessory: 'visor' },
   },
   marksman: {
     id: 'marksman', name: 'エイム', label: '狙撃型', detail: '距離を保ち、レールガンの単発を狙う', weapon: 'rail',
     preferredMin: 13, preferredMax: 22, speed: .92, burst: 1, burstPause: .58, reactionScale: 1.12, accuracyBonus: .12,
     tactics: { hold: 3, backstep: 2.6, strafe: 2.2, flank: 1.2, juke: .6, press: .4 },
+    look: { shirt: 0x3a4a5e, pants: 0x1a2230, skin: 0xf5cd30, metal: 0x3d5866, accessory: 'scope' },
   },
   phantom: {
     id: 'phantom', name: 'ファントム', label: 'かく乱型', detail: '跳ねながら不規則に動き、狙いを絞らせない', weapon: 'pulse',
     preferredMin: 5, preferredMax: 13, speed: 1.1, burst: 2, burstPause: .6, reactionScale: .94, accuracyBonus: -.02,
     tactics: { juke: 3.4, hop: 3, strafe: 2.2, flank: 1.6, press: 1.2, backstep: 1 },
+    look: { shirt: 0x3a2450, pants: 0x1c1230, skin: 0xcdb9e0, metal: 0x2b3038, accessory: 'hood' },
   },
   breaker: {
     id: 'breaker', name: 'ブレイカー', label: '制圧型', detail: '足を止めてキャノンを撃ち、正面から押し込む', weapon: 'cannon',
     preferredMin: 6, preferredMax: 14, speed: .9, burst: 1, burstPause: .72, reactionScale: 1.05, accuracyBonus: .05,
     tactics: { press: 3, hold: 2.6, strafe: 1.8, backstep: 1.4, flank: 1, hop: .4 },
+    look: { shirt: 0xd97b29, pants: 0x3a2a1c, skin: 0xf5cd30, metal: 0x4a4a4a, accessory: 'backpack' },
   },
   ambusher: {
     id: 'ambusher', name: 'アンブッシュ', label: '待ち伏せ型', detail: '大きく回り込み、間合いに入った瞬間に仕掛ける', weapon: 'scatter',
     preferredMin: 4, preferredMax: 10, speed: 1.06, burst: 1, burstPause: .5, reactionScale: .9, accuracyBonus: -.03,
     tactics: { flank: 3.2, press: 2.4, hold: 1.6, juke: 1.6, strafe: 1.4, backstep: .8 },
+    look: { shirt: 0x2d4a2d, pants: 0x1a2e1a, skin: 0xf5cd30, metal: 0x2b3038, accessory: 'fin' },
   },
   adaptive: {
     id: 'adaptive', name: 'シフト', label: '適応型', detail: 'HPに応じて武器と距離の取り方を変える', weapon: 'adaptive',
     preferredMin: 8, preferredMax: 16, speed: 1.05, burst: 3, burstPause: .68, reactionScale: .86, accuracyBonus: .04, adaptive: true,
     tactics: { strafe: 2, press: 2, backstep: 2, flank: 1.6, juke: 1.6, hop: 1.2, hold: 1.2 },
+    look: { shirt: 0x4a2d5e, pants: 0x241633, skin: 0xf5cd30, metal: 0x2b3038, accessory: 'core' },
   },
 };
 
