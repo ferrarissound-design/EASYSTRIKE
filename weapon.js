@@ -119,6 +119,10 @@ export class Weapon {
   createHands() {
     const skin = surfaceMaterial(0xf5cd30, { emissive: 0x2a2205, roughness: .78, envMapIntensity: .35 });
     const sleeve = surfaceMaterial(0xc4281c, { emissive: 0x2a0705, roughness: .78, envMapIntensity: .35 });
+    // 銃と接する側の握り。肌を本家R6の黄色にしたことで、同系色のスパークピストル（黄）
+    // だと手と銃が一体化して銃の形が読めなくなる。境目に濃色を1枚挟み、どの武器カラー
+    // でも手の終わりが分かるようにする。
+    const grip = surfaceMaterial(0x232a33, { emissive: 0x05070a, roughness: .6, metalness: .2, envMapIntensity: .4 });
     const part = (geometry, material, x, y, z, rotation) => {
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.set(x, y, z);
@@ -129,6 +133,7 @@ export class Weapon {
     part(new THREE.BoxGeometry(.21, .21, .14), sleeve, .075, -.255, .3, [.42, 0, .1]);
     part(new THREE.BoxGeometry(.17, .17, .28), skin, -.065, -.11, -.15, [.28, 0, -.5]);
     part(new THREE.BoxGeometry(.19, .19, .13), sleeve, -.15, -.21, .02, [.28, 0, -.5]);
+    part(new THREE.BoxGeometry(.18, .18, .07), grip, -.046, -.076, -.285, [.28, 0, -.5]);
   }
 
   createModel(definition) {
