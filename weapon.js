@@ -114,19 +114,21 @@ export class Weapon {
     this.base.set(halfHeight * this.camera.aspect * side, -halfHeight * VIEW.drop, -VIEW.depth);
   }
 
+  // R6の腕は肘のない1本のブロックで、肌色そのまま。肩側だけシャツの赤い袖口が少し覗く
+  // 見た目にして、enemy.jsの本家アバターと同じ色（肌0xf5cd30・シャツ0xc4281c）で揃える。
   createHands() {
-    const skin = surfaceMaterial(0xf3c290, { emissive: 0x3a2517, roughness: .72, envMapIntensity: .3 });
-    const sleeve = surfaceMaterial(0x3f7ae0, { emissive: 0x102a4a, roughness: .68, envMapIntensity: .3 });
+    const skin = surfaceMaterial(0xf5cd30, { emissive: 0x2a2205, roughness: .78, envMapIntensity: .35 });
+    const sleeve = surfaceMaterial(0xc4281c, { emissive: 0x2a0705, roughness: .78, envMapIntensity: .35 });
     const part = (geometry, material, x, y, z, rotation) => {
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.set(x, y, z);
       if (rotation) mesh.rotation.set(...rotation);
       this.rig.add(mesh);
     };
-    part(new THREE.BoxGeometry(.125, .125, .34), skin, .025, -.16, .13, [.42, 0, .1]);
-    part(new THREE.BoxGeometry(.142, .142, .15), sleeve, .06, -.255, .29, [.42, 0, .1]);
-    part(new THREE.BoxGeometry(.115, .115, .32), skin, -.06, -.12, -.16, [.28, 0, -.5]);
-    part(new THREE.BoxGeometry(.132, .132, .14), sleeve, -.145, -.215, .02, [.28, 0, -.5]);
+    part(new THREE.BoxGeometry(.19, .19, .3), skin, .03, -.15, .15, [.42, 0, .1]);
+    part(new THREE.BoxGeometry(.21, .21, .14), sleeve, .075, -.255, .3, [.42, 0, .1]);
+    part(new THREE.BoxGeometry(.17, .17, .28), skin, -.065, -.11, -.15, [.28, 0, -.5]);
+    part(new THREE.BoxGeometry(.19, .19, .13), sleeve, -.15, -.21, .02, [.28, 0, -.5]);
   }
 
   createModel(definition) {
