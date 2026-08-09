@@ -325,7 +325,14 @@ body[data-fire-position="high"] { --fire-bottom: 48px; }
   :is(.touch, .force-touch) .health { width: min(230px, 34vw); }
 }
 @media (max-height: 460px) {
-  :root { --stick-size: 92px; --stick-bottom: 50px; --ammo-lift: -10px; }
+  /* fire/jump/crouch/照準などの右側ボタン群は、通常時のclamp()下限(60〜94px)と
+     固定pxの余白が縦に短い画面だと縮みきらず、積み上げが画面中央の照準線(#crosshair)
+     まで届いてしまう。ここだけ寸法と余白を直接縮めて中央と被らせない。 */
+  :root {
+    --stick-size: 92px; --stick-bottom: 50px; --ammo-lift: -10px;
+    --button-size: 52px; --jump-button-size: 48px; --fire-button-size: 50px;
+    --jump-bottom: 18px; --fire-bottom: 16px; --hud-arc: 6px;
+  }
   :is(.touch, .force-touch) .gear-hud { top: auto; bottom: calc(12px + env(safe-area-inset-bottom)); left: calc(28px + min(230px, 34vw) + env(safe-area-inset-left)); grid-auto-flow: column; }
   :is(.touch, .force-touch).left-handed .gear-hud { left: auto; right: calc(28px + min(230px, 34vw) + env(safe-area-inset-right)); }
   /* 縦が足りないので武器スロットは千鳥をやめて一回り小さく、残弾は武器名を落として数字だけにする。 */
