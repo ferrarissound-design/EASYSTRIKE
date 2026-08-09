@@ -9,6 +9,16 @@
   --fire-button-scale: 1.1;
   --jump-button-size: clamp(60px, calc(17vmin * var(--jump-button-scale)), 92px);
   --fire-button-size: clamp(62px, calc(17vmin * var(--fire-button-scale)), 94px);
+  /* 操作ボタンは2段階。重要操作(射撃・ジャンプ・リロード)は大きく、補助操作
+     (照準・しゃがみ・近接・道具)はリロードより約25%小さくして存在感を落とす。 */
+  --ui-major-size: calc(var(--button-size) * .82);
+  --ui-aux-size: calc(var(--button-size) * .62);
+  /* 画面最下段はHP・武器スロットの情報帯にあてる。ジャンプはこの帯の上へ逃がす。 */
+  --ui-strip: 24px;
+  --slot-size: clamp(28px, 8.2vw, 38px);
+  /* ボタンは通常時かなり透かし、触れている間だけはっきり出す。 */
+  --ui-idle: .52;
+  --ui-hold: .95;
   --jump-bottom: 28px;
   --fire-bottom: 24px;
   /* 右下の操作ボタンは真四角に積まず、上の段ほど内側へずらして弧を描かせる。 */
@@ -21,8 +31,6 @@
      ボタンを大きくした設定と重なるのを防ぐ。 */
   --stick-size: clamp(92px, 30vmin, 124px);
   --stick-bottom: 52px;
-  /* リロードを縦に逃がした狭い画面で、残弾表示を持ち上げる分。 */
-  --ammo-lift: 0px;
   /* 試合中UIの共通トーン。ほぼ黒の半透明ガラスに細い白フチ。 */
   --hud-glass: #101014a8;
   --hud-glass-solid: #0e0e12d4;
@@ -235,91 +243,152 @@ button:focus-visible { outline: 3px solid #75efff; outline-offset: 3px; }
 
 #mobile > * { position: fixed; z-index: 10; }
 #look { inset: 0 0 0 40%; z-index: 6; }
-#stick { left: calc(22px + env(safe-area-inset-left)); bottom: calc(28px + env(safe-area-inset-bottom)); width: var(--stick-size); height: var(--stick-size); border: 2px solid #ffffff4d; border-radius: 50%; background: #ffffff14; }
+/* スティックは視界を塞がないよう輪郭だけを残す。位置と操作感は従来どおり。 */
+#stick { left: calc(22px + env(safe-area-inset-left)); bottom: calc(28px + env(safe-area-inset-bottom)); width: var(--stick-size); height: var(--stick-size); border: 1.5px solid #ffffff33; border-radius: 50%; background: #ffffff0a; }
 /* つまみは常に中央から。スティックの直径が変わっても位置がずれないようにする。 */
-#stick i { position: absolute; left: calc(50% - 26px); top: calc(50% - 26px); width: 52px; height: 52px; border-radius: 50%; background: #ffffff8c; box-shadow: 0 2px 8px #0006; }
-/* 本家風のタッチ操作。文字は置かず、半透明のほぼ黒い円に白いアイコンだけを載せる。 */
-#mobile button { display: grid; place-items: center; width: var(--button-size); height: var(--button-size); border-radius: 50%; border: 1.5px solid var(--hud-stroke); background: var(--hud-glass); box-shadow: 0 5px 14px #00000059; backdrop-filter: blur(6px); font-size: 0; opacity: .9; }
-#mobile button .icon { width: 46%; height: 46%; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 2px #0009); }
-#mobile button:active { opacity: 1; background: var(--hud-press); transform: scale(.94); }
-#fire { right: calc(18px + env(safe-area-inset-right)); bottom: calc(var(--fire-bottom) + env(safe-area-inset-bottom)); width: var(--fire-button-size) !important; height: var(--fire-button-size) !important; }
-#jump { right: calc(30px + var(--fire-button-size) + env(safe-area-inset-right)); bottom: calc(var(--jump-bottom) + env(safe-area-inset-bottom)); width: var(--jump-button-size) !important; height: var(--jump-button-size) !important; }
-#crouch { right: calc(18px + var(--hud-arc) + env(safe-area-inset-right)); bottom: calc(var(--fire-bottom) + var(--fire-button-size) + 12px + env(safe-area-inset-bottom)); }
-#aim { right: calc(30px + var(--fire-button-size) + var(--hud-arc) * 1.4 + env(safe-area-inset-right)); bottom: calc(var(--jump-bottom) + var(--jump-button-size) + 12px + env(safe-area-inset-bottom)); }
-#reload, #quickMelee, #quickUtility { width: calc(var(--button-size) * .62) !important; height: calc(var(--button-size) * .62) !important; }
-/* リロードは弧のいちばん内側。体力バーの帯を避けて一段持ち上げる。 */
-#reload { right: calc(42px + var(--fire-button-size) + var(--jump-button-size) + env(safe-area-inset-right)); bottom: calc(var(--jump-bottom) + 30px + env(safe-area-inset-bottom)); }
-/* 近接攻撃・道具は下段の弧から外し、右上の空き(スコア表示の右)へ逃がす。
+#stick i { position: absolute; left: calc(50% - 26px); top: calc(50% - 26px); width: 52px; height: 52px; border-radius: 50%; background: #ffffff5c; box-shadow: 0 2px 8px #0005; }
+/* 本家風のタッチ操作。文字は置かず、薄いガラスの円に白いアイコンだけを載せる。
+   通常は透かして背景のゲーム画面を見せ、触れている間だけはっきりさせる。 */
+#mobile button { display: grid; place-items: center; width: var(--button-size); height: var(--button-size); border-radius: 50%; border: 1px solid #ffffff30; background: #0c10185c; box-shadow: 0 3px 10px #00000040; backdrop-filter: blur(5px); font-size: 0; opacity: var(--ui-idle); transition: opacity .12s, transform .12s; }
+/* ボタン自体を透かすぶん、アイコンは線を太らせて影を強め、視認性を確保する。 */
+#mobile button .icon { width: 46%; height: 46%; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 3px #000c); }
+#mobile button:active { opacity: var(--ui-hold); background: #ffffff2e; transform: scale(.94); }
+/* 重要操作。射撃は右下の親指位置を動かさず、リロードはその真上へ積む。 */
+#fire { right: calc(16px + env(safe-area-inset-right)); bottom: calc(var(--fire-bottom) + env(safe-area-inset-bottom)); width: var(--fire-button-size) !important; height: var(--fire-button-size) !important; }
+/* ジャンプだけは最下段の情報帯(HP・武器スロット)の上へ逃がす。 */
+#jump { right: calc(26px + var(--fire-button-size) + env(safe-area-inset-right)); bottom: calc(var(--jump-bottom) + var(--ui-strip) + env(safe-area-inset-bottom)); width: var(--jump-button-size) !important; height: var(--jump-button-size) !important; }
+#reload { width: var(--ui-major-size) !important; height: var(--ui-major-size) !important; right: calc(20px + env(safe-area-inset-right)); bottom: calc(var(--fire-bottom) + var(--fire-button-size) + 12px + env(safe-area-inset-bottom)); }
+/* 補助操作。重要操作より一回り小さくし、上の段ほど内側へずらして弧を描かせる。 */
+#crouch, #aim, #quickMelee, #quickUtility { width: var(--ui-aux-size) !important; height: var(--ui-aux-size) !important; }
+#aim { right: calc(30px + var(--fire-button-size) + var(--hud-arc) + env(safe-area-inset-right)); bottom: calc(var(--jump-bottom) + var(--ui-strip) + var(--jump-button-size) + 12px + env(safe-area-inset-bottom)); }
+#crouch { right: calc(24px + var(--hud-arc) * 1.2 + env(safe-area-inset-right)); bottom: calc(var(--fire-bottom) + var(--fire-button-size) + var(--ui-major-size) + 24px + env(safe-area-inset-bottom)); }
+/* 近接攻撃・道具は使用頻度が低いので下段の弧から外し、右上の空きへ横並びで逃がす。
    #lookのスワイプ判定域は画面右60%全体なので、弧の上段に置くとエイム中の
-   指がここに乗って邪魔になっていた。 */
-#quickMelee, #quickUtility { right: calc(14px + env(safe-area-inset-right)); bottom: auto; }
-#quickMelee { top: calc(104px + env(safe-area-inset-top)); }
-#quickUtility { top: calc(104px + var(--button-size) * .62 + 10px + env(safe-area-inset-top)); }
+   指がここに乗って邪魔になる。 */
+#quickUtility { right: calc(14px + env(safe-area-inset-right)); bottom: auto; top: calc(100px + env(safe-area-inset-top)); }
+#quickMelee { right: calc(22px + var(--ui-aux-size) + env(safe-area-inset-right)); bottom: auto; top: calc(100px + env(safe-area-inset-top)); }
 body[data-jump-position="low"] { --jump-bottom: 14px; }
 body[data-jump-position="high"] { --jump-bottom: 50px; }
 body[data-fire-position="low"] { --fire-bottom: 12px; }
 body[data-fire-position="high"] { --fire-bottom: 48px; }
 .left-handed #stick { left: auto; right: calc(22px + env(safe-area-inset-right)); }
 .left-handed #look { inset: 0 40% 0 0; }
-.left-handed #fire { right: auto; left: calc(18px + env(safe-area-inset-left)); }
-.left-handed #jump { right: auto; left: calc(30px + var(--fire-button-size) + env(safe-area-inset-left)); }
-.left-handed #crouch { right: auto; left: calc(18px + var(--hud-arc) + env(safe-area-inset-left)); }
-.left-handed #aim { right: auto; left: calc(30px + var(--fire-button-size) + var(--hud-arc) * 1.4 + env(safe-area-inset-left)); }
-.left-handed #reload { right: auto; left: calc(42px + var(--fire-button-size) + var(--jump-button-size) + env(safe-area-inset-left)); }
-.left-handed #quickMelee, .left-handed #quickUtility { right: auto; left: calc(14px + env(safe-area-inset-left)); }
+.left-handed #fire { right: auto; left: calc(16px + env(safe-area-inset-left)); }
+.left-handed #jump { right: auto; left: calc(26px + var(--fire-button-size) + env(safe-area-inset-left)); }
+.left-handed #reload { right: auto; left: calc(20px + env(safe-area-inset-left)); }
+.left-handed #aim { right: auto; left: calc(30px + var(--fire-button-size) + var(--hud-arc) + env(safe-area-inset-left)); }
+.left-handed #crouch { right: auto; left: calc(24px + var(--hud-arc) * 1.2 + env(safe-area-inset-left)); }
+.left-handed #quickUtility { right: auto; left: calc(14px + env(safe-area-inset-left)); }
+.left-handed #quickMelee { right: auto; left: calc(22px + var(--ui-aux-size) + env(safe-area-inset-left)); }
 /* タッチ時のHUD配置。写真に合わせて画面の縁ごとに役割を分ける。
      左上=システム / 上中央=スコア / 左中央=武器 / 左下=ギアと体力 / 右下=操作と残弾。
    条件は html.touch（index.html の先頭スクリプト）と body.force-touch（controls.js）の
    どちらか一方が立てば成立する。片方が動かなくても配置が崩れないようにするための二重掛け。 */
 :is(.touch, .force-touch) #mobile { display: block !important; }
 :is(.touch, .force-touch) .brand { display: none; }
+/* 上部は3枚のカードをやめ、1本の細いピルにまとめる。中身は
+   [自分のラウンド数] | [時計 + ラウンド番号] | [相手のラウンド数] だけに絞る。 */
+:is(.touch, .force-touch) .scoreboard {
+  gap: 0; align-items: stretch; padding: 2px 3px; border-radius: 11px;
+  background: var(--hud-glass); box-shadow: inset 0 0 0 1px var(--hud-stroke); backdrop-filter: blur(6px);
+}
+:is(.touch, .force-touch) .score-side {
+  width: auto; min-width: 42px; padding: 3px 9px 4px; grid-template-columns: auto;
+  border-radius: 8px; background: none; box-shadow: none;
+}
+/* アバターとチーム名は常時出す必要がない。数字とピップスだけ残す。 */
+:is(.touch, .force-touch) .score-avatar, :is(.touch, .force-touch) .score-side span { display: none; }
+:is(.touch, .force-touch) .score-side b { font-size: 17px; color: color-mix(in srgb, var(--team) 62%, white); }
+:is(.touch, .force-touch) .score-pips { position: static; margin-top: 3px; gap: 2px; }
+:is(.touch, .force-touch) .score-pips s { height: 2px; background: #ffffff2b; }
+:is(.touch, .force-touch) .score-side .score-pips s.on { background: color-mix(in srgb, var(--team) 62%, white); }
+/* 時計は左右に細い区切り線を入れるだけで、独立したカードには見せない。 */
+:is(.touch, .force-touch) .round-clock {
+  width: auto; min-width: 54px; padding: 3px 10px 4px; border-radius: 0;
+  background: none; box-shadow: none; border-inline: 1px solid #ffffff1f;
+}
+:is(.touch, .force-touch) .round-clock b { font-size: 16px; }
+:is(.touch, .force-touch) .round-clock small { font-size: 7px; }
+/* モード名(デュエル等)はラウンド開始バナーで出るので、常時表示はしない。 */
+:is(.touch, .force-touch) .round-clock em { display: none; }
+/* キルフィードは右上の補助ボタンの下から始める。 */
+:is(.touch, .force-touch) #killfeed { top: calc(100px + var(--ui-aux-size) + 12px + env(safe-area-inset-top)); right: calc(14px + env(safe-area-inset-right)); }
 /* スティックは体力バーの分だけ持ち上げる。 */
 :is(.touch, .force-touch) #stick { bottom: calc(var(--stick-bottom) + env(safe-area-inset-bottom)); }
-/* 体力は写真同様、画面のいちばん下を走る細い横バー。数字はバーの右端に添える。 */
+/* 体力は画面左下ギリギリの細い横バー。数字はバーの右端に添える。
+   最下段の情報帯を武器スロットと分け合うため、幅は画面幅に対して控えめに取る。 */
 :is(.touch, .force-touch) .health {
-  top: auto; bottom: calc(12px + env(safe-area-inset-bottom)); width: min(300px, 46vw);
-  display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 8px;
+  left: calc(14px + env(safe-area-inset-left));
+  top: auto; bottom: calc(9px + env(safe-area-inset-bottom)); width: clamp(76px, 23vw, 120px);
+  display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 7px;
 }
-:is(.touch, .force-touch) .health small { order: -1; grid-column: 1 / -1; height: 14px; margin: 0 0 3px; }
-:is(.touch, .force-touch) .health > div { order: 1; height: 9px; }
+:is(.touch, .force-touch) .health small { order: -1; grid-column: 1 / -1; height: 12px; margin: 0 0 2px; font-size: 9px; }
+:is(.touch, .force-touch) .health > div { order: 1; height: 7px; }
 /* ラベルの「HP」は文字を消し、数字だけを残す。 */
 :is(.touch, .force-touch) .health label { order: 2; margin: 0; font-size: 0; }
-:is(.touch, .force-touch) .health label b { margin: 0; font-size: 15px; font-variant-numeric: tabular-nums; }
+:is(.touch, .force-touch) .health label b { margin: 0; font-size: 13px; font-variant-numeric: tabular-nums; }
 /* ギア表示は左上のアイコンの下。左端の下半分はスティックと武器スロットで埋まるため、
    触らない情報だけを上に逃がす。 */
 :is(.touch, .force-touch) .gear-hud { left: calc(16px + env(safe-area-inset-left)); top: calc(24px + var(--hud-stack) + env(safe-area-inset-top)); bottom: auto; }
-/* 残弾はボタン群の真上。ボタンの高さは設定で変わるため #quickUtility と同じ式に揃える。 */
-:is(.touch, .force-touch) .ammo { top: auto; bottom: calc(var(--fire-bottom) + var(--fire-button-size) + var(--button-size) * 1.62 + var(--ammo-lift) + 34px + env(safe-area-inset-bottom)); }
-:is(.touch, .force-touch) .ammo b { font-size: 34px; }
-:is(.touch, .force-touch) .ammo-count small { font-size: 14px; }
-:is(.touch, .force-touch) .ammo-line { gap: 7px; }
-/* 武器スロットは画面の高さによらず必ず左端。スティックの真上に固定して、
-   下中央へ退避させない（退避すると射撃ボタンや体力バーと重なる）。 */
-:is(.touch, .force-touch) .weapon-slots {
-  left: calc(12px + env(safe-area-inset-left)); right: auto; top: auto;
-  bottom: calc(var(--stick-bottom) + var(--stick-size) + 16px + env(safe-area-inset-bottom));
-  transform: none; display: grid; grid-template-columns: repeat(2, auto); gap: 9px 8px;
+/* 残弾は弧のいちばん上のボタン(しゃがみ)よりさらに上。ボタンの高さは設定で
+   変わるため、しゃがみの積み上げと同じ式に揃えて追従させる。 */
+:is(.touch, .force-touch) .ammo {
+  right: calc(18px + env(safe-area-inset-right)); top: auto;
+  bottom: calc(var(--fire-bottom) + var(--fire-button-size) + var(--ui-major-size) + var(--ui-aux-size) + 34px + env(safe-area-inset-bottom));
 }
-:is(.touch, .force-touch) .weapon-slots button:nth-child(even) { margin-top: 17px; }
-:is(.touch, .force-touch) .weapon-slots button { width: 44px; min-width: 0; height: 44px; padding: 0; border-radius: 50%; font-size: 0; }
-:is(.touch, .force-touch) .weapon-slots button b { font-size: 13px; }
+/* 一瞬で読み取れる大きさは残しつつ、画面を占める面積を落とす。 */
+:is(.touch, .force-touch) .ammo b { font-size: clamp(20px, 6vw, 26px); }
+:is(.touch, .force-touch) .ammo-count small { font-size: 11px; }
+:is(.touch, .force-touch) .ammo span { font-size: 10px; }
+:is(.touch, .force-touch) .ammo > small { height: 13px; font-size: 9px; }
+:is(.touch, .force-touch) .ammo-line { gap: 6px; }
+/* 武器スロットは最下段へ横一列。画面中央に決め打ちすると、ボタンサイズを
+   最大にした狭い端末で射撃ボタンとぶつかる。左はHP・右は射撃ボタンの手前を
+   境界にして「空いている帯」を確保し、その中で中央寄せする。 */
+:is(.touch, .force-touch) .weapon-slots {
+  left: calc(24px + clamp(76px, 23vw, 120px) + env(safe-area-inset-left));
+  right: calc(28px + var(--fire-button-size) + env(safe-area-inset-right));
+  top: auto; bottom: calc(8px + env(safe-area-inset-bottom));
+  transform: none; display: flex; justify-content: center; gap: clamp(4px, 1.6vw, 8px);
+}
+:is(.touch, .force-touch).left-handed .weapon-slots {
+  left: calc(28px + var(--fire-button-size) + env(safe-area-inset-left));
+  right: calc(24px + clamp(76px, 23vw, 120px) + env(safe-area-inset-right));
+}
+:is(.touch, .force-touch) .weapon-slots button {
+  flex: 0 1 var(--slot-size); min-width: 22px; aspect-ratio: 1; width: auto; height: auto; padding: 0;
+  border: 1px solid #ffffff30; border-radius: 50%; background: #0c10185c;
+  font-size: 0; opacity: .42; transition: opacity .12s, transform .12s;
+}
+:is(.touch, .force-touch) .weapon-slots button b { font-size: clamp(11px, 3.3vw, 14px); }
 :is(.touch, .force-touch) .weapon-slots button small { display: none; }
-:is(.touch, .force-touch) .weapon-slots button.selected { transform: scale(1.07); }
+/* 選択中だけをはっきり出す。未選択は輪郭が分かる程度に落とす。 */
+:is(.touch, .force-touch) .weapon-slots button.selected {
+  opacity: 1; border-color: #ffffff9e; background: #ffffff2b; transform: none;
+}
 
 /* 左利きではボタン群とスティックが入れ替わるため、体力・ギア・弾数も左右を入れ替える。 */
 :is(.touch, .force-touch).left-handed .health { left: auto; right: calc(14px + env(safe-area-inset-right)); grid-template-columns: auto 1fr; }
+:is(.touch, .force-touch).left-handed .ammo { right: auto; left: calc(18px + env(safe-area-inset-left)); }
 :is(.touch, .force-touch).left-handed .health small { text-align: right; }
 :is(.touch, .force-touch).left-handed .health > div { order: 2; }
 :is(.touch, .force-touch).left-handed .health label { order: 1; }
 :is(.touch, .force-touch).left-handed .gear-hud { left: auto; right: calc(16px + env(safe-area-inset-right)); justify-items: end; }
-:is(.touch, .force-touch).left-handed .ammo { right: auto; left: calc(22px + env(safe-area-inset-left)); text-align: left; }
+:is(.touch, .force-touch).left-handed .ammo { text-align: left; }
 :is(.touch, .force-touch).left-handed .ammo-line { justify-content: flex-start; flex-direction: row-reverse; }
-:is(.touch, .force-touch).left-handed .weapon-slots { left: auto; right: calc(12px + env(safe-area-inset-right)); }
-:is(.touch, .force-touch).left-handed .weapon-slots button:nth-child(even) { margin-top: 0; }
-:is(.touch, .force-touch).left-handed .weapon-slots button:nth-child(odd) { margin-top: 17px; }
+/* 武器スロットは最下段の中央固定なので、左利きでも左右を入れ替えない。 */
 
 @media (pointer: coarse) {
   .panel small { display: none; }
+}
+
+/* SE級の縦が短めの端末では、右下の積み上げの分だけ残弾表示が照準へ近づく。
+   弧と残弾を一段小さくして、中央から引き離す。 */
+@media (max-height: 720px) {
+  :root { --ui-major-size: calc(var(--button-size) * .72); --ui-aux-size: calc(var(--button-size) * .55); }
+  :is(.touch, .force-touch) .ammo b { font-size: 21px; }
+  :is(.touch, .force-touch) .ammo span { font-size: 9px; }
+  :is(.touch, .force-touch) .ammo > small { height: 11px; }
 }
 
 /* 横持ちの短い画面。左端は 体力→スティック→武器スロット の順で埋まりきるため、
@@ -332,18 +401,16 @@ body[data-fire-position="high"] { --fire-bottom: 48px; }
      固定pxの余白が縦に短い画面だと縮みきらず、積み上げが画面中央の照準線(#crosshair)
      まで届いてしまう。ここだけ寸法と余白を直接縮めて中央と被らせない。 */
   :root {
-    --stick-size: 92px; --stick-bottom: 50px; --ammo-lift: -10px;
+    --stick-size: 92px; --stick-bottom: 50px;
     --button-size: 52px; --jump-button-size: 48px; --fire-button-size: 50px;
     --jump-bottom: 18px; --fire-bottom: 16px; --hud-arc: 6px;
+    --ui-strip: 14px; --slot-size: 32px;
   }
   :is(.touch, .force-touch) .gear-hud { top: auto; bottom: calc(12px + env(safe-area-inset-bottom)); left: calc(28px + min(230px, 34vw) + env(safe-area-inset-left)); grid-auto-flow: column; }
   :is(.touch, .force-touch).left-handed .gear-hud { left: auto; right: calc(28px + min(230px, 34vw) + env(safe-area-inset-right)); }
-  /* 縦が足りないので武器スロットは千鳥をやめて一回り小さく、残弾は武器名を落として数字だけにする。 */
-  :is(.touch, .force-touch) .weapon-slots button { width: 38px; height: 38px; }
-  :is(.touch, .force-touch) .weapon-slots button:nth-child(even),
-  :is(.touch, .force-touch).left-handed .weapon-slots button:nth-child(odd) { margin-top: 0; }
+  /* 縦が足りないので残弾は武器名を落として数字だけにする。 */
   :is(.touch, .force-touch) .ammo span { display: none; }
-  :is(.touch, .force-touch) .ammo b { font-size: 27px; }
+  :is(.touch, .force-touch) .ammo b { font-size: 22px; }
 }
 
 @media (max-width: 760px) {
@@ -396,13 +463,8 @@ body[data-fire-position="high"] { --fire-bottom: 48px; }
   .round-clock { width: 52px; padding: 5px 6px 7px; }
   .round-clock b { font-size: 15px; }
   .round-clock small { font-size: 7px; }
-  :root { --ammo-lift: calc(var(--button-size) * .62 + 12px); }
-  /* 内側の列を1段増やしてリロードを一段持ち上げる（近接攻撃・道具は右上固定なのでここでは触らない）。 */
-  #reload {
-    right: calc(30px + var(--fire-button-size) + var(--hud-arc) * 3 + env(safe-area-inset-right));
-    bottom: calc(var(--jump-bottom) + var(--jump-button-size) + var(--button-size) + 22px + env(safe-area-inset-bottom));
-  }
-  .left-handed #reload { right: auto; left: calc(30px + var(--fire-button-size) + var(--hud-arc) * 3 + env(safe-area-inset-left)); }
+  /* リロードは射撃ボタンの真上（画面右端）に積むだけなので、狭い画面でも
+     スティックには近づかない。位置の付け替えは不要。 */
 }
 
 @media (max-width: 500px), (orientation: portrait) {
