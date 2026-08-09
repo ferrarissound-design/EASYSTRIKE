@@ -249,8 +249,12 @@ button:focus-visible { outline: 3px solid #75efff; outline-offset: 3px; }
 #reload, #quickMelee, #quickUtility { width: calc(var(--button-size) * .62) !important; height: calc(var(--button-size) * .62) !important; }
 /* リロードは弧のいちばん内側。体力バーの帯を避けて一段持ち上げる。 */
 #reload { right: calc(42px + var(--fire-button-size) + var(--jump-button-size) + env(safe-area-inset-right)); bottom: calc(var(--jump-bottom) + 30px + env(safe-area-inset-bottom)); }
-#quickMelee { right: calc(30px + var(--fire-button-size) + var(--hud-arc) * 3 + env(safe-area-inset-right)); bottom: calc(var(--jump-bottom) + var(--jump-button-size) + var(--button-size) + 22px + env(safe-area-inset-bottom)); }
-#quickUtility { right: calc(18px + var(--hud-arc) * 2.4 + env(safe-area-inset-right)); bottom: calc(var(--fire-bottom) + var(--fire-button-size) + var(--button-size) + 22px + env(safe-area-inset-bottom)); }
+/* 近接攻撃・道具は下段の弧から外し、右上の空き(スコア表示の右)へ逃がす。
+   #lookのスワイプ判定域は画面右60%全体なので、弧の上段に置くとエイム中の
+   指がここに乗って邪魔になっていた。 */
+#quickMelee, #quickUtility { right: calc(14px + env(safe-area-inset-right)); bottom: auto; }
+#quickMelee { top: calc(104px + env(safe-area-inset-top)); }
+#quickUtility { top: calc(104px + var(--button-size) * .62 + 10px + env(safe-area-inset-top)); }
 body[data-jump-position="low"] { --jump-bottom: 14px; }
 body[data-jump-position="high"] { --jump-bottom: 50px; }
 body[data-fire-position="low"] { --fire-bottom: 12px; }
@@ -262,8 +266,7 @@ body[data-fire-position="high"] { --fire-bottom: 48px; }
 .left-handed #crouch { right: auto; left: calc(18px + var(--hud-arc) + env(safe-area-inset-left)); }
 .left-handed #aim { right: auto; left: calc(30px + var(--fire-button-size) + var(--hud-arc) * 1.4 + env(safe-area-inset-left)); }
 .left-handed #reload { right: auto; left: calc(42px + var(--fire-button-size) + var(--jump-button-size) + env(safe-area-inset-left)); }
-.left-handed #quickMelee { right: auto; left: calc(30px + var(--fire-button-size) + var(--hud-arc) * 3 + env(safe-area-inset-left)); }
-.left-handed #quickUtility { right: auto; left: calc(18px + var(--hud-arc) * 2.4 + env(safe-area-inset-left)); }
+.left-handed #quickMelee, .left-handed #quickUtility { right: auto; left: calc(14px + env(safe-area-inset-left)); }
 /* タッチ時のHUD配置。写真に合わせて画面の縁ごとに役割を分ける。
      左上=システム / 上中央=スコア / 左中央=武器 / 左下=ギアと体力 / 右下=操作と残弾。
    条件は html.touch（index.html の先頭スクリプト）と body.force-touch（controls.js）の
@@ -394,17 +397,12 @@ body[data-fire-position="high"] { --fire-bottom: 48px; }
   .round-clock b { font-size: 15px; }
   .round-clock small { font-size: 7px; }
   :root { --ammo-lift: calc(var(--button-size) * .62 + 12px); }
-  /* 内側の列を1段増やして、下段からリロード・近接の順に積む。 */
+  /* 内側の列を1段増やしてリロードを一段持ち上げる（近接攻撃・道具は右上固定なのでここでは触らない）。 */
   #reload {
     right: calc(30px + var(--fire-button-size) + var(--hud-arc) * 3 + env(safe-area-inset-right));
     bottom: calc(var(--jump-bottom) + var(--jump-button-size) + var(--button-size) + 22px + env(safe-area-inset-bottom));
   }
-  #quickMelee {
-    right: calc(30px + var(--fire-button-size) + var(--hud-arc) * 3.4 + env(safe-area-inset-right));
-    bottom: calc(var(--jump-bottom) + var(--jump-button-size) + var(--button-size) * 1.62 + 34px + env(safe-area-inset-bottom));
-  }
   .left-handed #reload { right: auto; left: calc(30px + var(--fire-button-size) + var(--hud-arc) * 3 + env(safe-area-inset-left)); }
-  .left-handed #quickMelee { right: auto; left: calc(30px + var(--fire-button-size) + var(--hud-arc) * 3.4 + env(safe-area-inset-left)); }
 }
 
 @media (max-width: 500px), (orientation: portrait) {
