@@ -13,6 +13,7 @@ const types = {
   '.json': 'application/json; charset=utf-8',
   '.webmanifest': 'application/manifest+json; charset=utf-8',
   '.svg': 'image/svg+xml',
+  '.mp3': 'audio/mpeg',
 };
 
 createServer((request, response) => {
