@@ -1,8 +1,9 @@
 import { createReadStream, existsSync } from 'node:fs';
-import { extname, join, normalize } from 'node:path';
+import { extname, join, normalize, relative, resolve } from 'node:path';
 import { createServer } from 'node:http';
 
-const root = process.cwd();
+const rootOption = process.argv.find(argument => argument.startsWith('--root='));
+const root = resolve(process.cwd(), rootOption ? rootOption.slice('--root='.length) : '.');
 const port = Number(process.env.PORT || 4173);
 const types = {
   '.html': 'text/html; charset=utf-8',
@@ -16,12 +17,13 @@ const types = {
 
 createServer((request, response) => {
   const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
-  const relative = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
-  const mapped = relative === 'vendor/three.module.js'
+  const requestPath = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
+  const mapped = requestPath === 'vendor/three.module.js' && !existsSync(join(root, requestPath))
     ? 'node_modules/three/build/three.module.js'
-    : relative;
+    : requestPath;
   const file = normalize(join(root, mapped));
-  if (!file.startsWith(root) || !existsSync(file)) {
+  const pathFromRoot = relative(root, file);
+  if (pathFromRoot.startsWith('..') || pathFromRoot === '' || !existsSync(file)) {
     response.writeHead(404).end('Not found');
     return;
   }

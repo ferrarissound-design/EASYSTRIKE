@@ -5,11 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev-server.mjs",
+    "serve:dist": "node scripts/dev-server.mjs --root=dist",
     "build": "node scripts/build.mjs",
     "test": "node scripts/run-tests.mjs",
+    "test:e2e": "playwright test",
     "check": "npm test && npm run build && node scripts/verify-dist.mjs"
   },
   "dependencies": {
     "three": "0.168.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1"
   }
 }
