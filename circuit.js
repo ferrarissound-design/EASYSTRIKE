@@ -34,18 +34,52 @@ export const CIRCUIT_RIVALS = [
 const STORAGE_KEY = 'firstBlastCircuitV1';
 
 export class CircuitProgress {
-  constructor() {
-    const empty = { bestStage: 0, clears: 0, bestTime: null };
-    try { this.data = { ...empty, ...JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') }; }
+  constructor(storage = localStorage, now = () => Date.now(), options = {}) {
+    this.storage = storage;
+    this.now = now;
+    this.storageKey = options.storageKey || STORAGE_KEY;
+    this.length = options.length || CIRCUIT_RIVALS.length;
+    const empty = { bestStage: 0, clears: 0, bestTime: null, run: null };
+    try { this.data = { ...empty, ...JSON.parse(this.storage.getItem(this.storageKey) || '{}') }; }
     catch { this.data = empty; }
-    this.startedAt = 0;
+    this.segmentStartedAt = 0;
   }
 
-  start() { this.startedAt = Date.now(); }
-  elapsed() { return this.startedAt ? Math.max(0, Date.now() - this.startedAt) : 0; }
+  get hasRun() { return !!this.data.run && this.data.run.stage < this.length; }
 
-  recordWin(stage) {
+  start() {
+    this.data.run = { stage: 0, elapsed: 0, runKeys: 0 };
+    this.segmentStartedAt = this.now();
+    this.save();
+  }
+
+  resume() {
+    if (!this.hasRun) this.start();
+    else this.segmentStartedAt = this.now();
+    return this.data.run;
+  }
+
+  pause() {
+    if (!this.hasRun || !this.segmentStartedAt) return;
+    this.data.run.elapsed = this.elapsed();
+    this.segmentStartedAt = 0;
+    this.save();
+  }
+
+  elapsed() {
+    if (!this.data.run) return 0;
+    const active = this.segmentStartedAt ? Math.max(0, this.now() - this.segmentStartedAt) : 0;
+    return Math.max(0, this.data.run.elapsed + active);
+  }
+
+  recordWin(stage, runKeys = 0) {
     this.data.bestStage = Math.max(this.data.bestStage, stage + 1);
+    if (this.data.run) {
+      this.data.run.elapsed = this.elapsed();
+      this.data.run.stage = stage + 1;
+      this.data.run.runKeys = runKeys;
+      this.segmentStartedAt = this.now();
+    }
     this.save();
   }
 
@@ -53,8 +87,16 @@ export class CircuitProgress {
     const elapsed = this.elapsed();
     this.data.clears++;
     if (!this.data.bestTime || elapsed < this.data.bestTime) this.data.bestTime = elapsed;
+    this.data.run = null;
+    this.segmentStartedAt = 0;
     this.save();
     return elapsed;
+  }
+
+  abandon() {
+    this.data.run = null;
+    this.segmentStartedAt = 0;
+    this.save();
   }
 
   formatTime(milliseconds = this.data.bestTime) {
@@ -63,5 +105,5 @@ export class CircuitProgress {
     return `${String(Math.floor(totalSeconds / 60)).padStart(2, '0')}:${String(totalSeconds % 60).padStart(2, '0')}`;
   }
 
-  save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data)); }
+  save() { this.storage.setItem(this.storageKey, JSON.stringify(this.data)); }
 }

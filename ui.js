@@ -80,7 +80,7 @@ export class UI {
   }
 
   setRounds(playerRounds, rivalRounds, roundNumber, mode = 'DUEL', target = 5) {
-    const modeLabels = { DUEL: 'デュエル', CIRCUIT: 'サーキット', RANGE: '射撃場' };
+    const modeLabels = { DUEL: 'デュエル', CIRCUIT: 'サーキット', DAILY: 'デイリー', RANGE: '射撃場' };
     this.write(document.getElementById('playerRounds'), 'playerRounds', playerRounds);
     this.write(document.getElementById('rivalRounds'), 'rivalRounds', rivalRounds);
     this.write(document.getElementById('roundNumber'), 'roundNumber', mode === 'RANGE' ? '自由練習' : `ラウンド ${roundNumber}`);
@@ -96,15 +96,16 @@ export class UI {
     });
   }
 
-  showBanner(title, subtitle = '', duration = 0) {
+  showBanner(title, subtitle = '', duration = 0, compact = false) {
     clearTimeout(this.bannerTimer);
     this.banner.querySelector('b').textContent = title;
     this.banner.querySelector('small').textContent = subtitle;
+    this.banner.classList.toggle('compact', compact);
     this.banner.classList.remove('hidden');
     if (duration) this.bannerTimer = setTimeout(() => this.hideBanner(), duration);
   }
 
-  hideBanner() { this.banner.classList.add('hidden'); }
+  hideBanner() { this.banner.classList.add('hidden'); this.banner.classList.remove('compact'); }
 
   update(player, weapon, enemy, dt = 0) {
     if (this.clockRunning && dt) {

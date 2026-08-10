@@ -8,18 +8,26 @@ import { UI } from './ui.js';
 import { Effects } from './effects.js';
 import { DIFFICULTIES, loadDifficulty } from './difficulty.js';
 import { loadSettings, applySettings, bindSettings } from './settings.js';
-import { ContractTracker, CONTRACTS } from './contracts.js';
+import { ContractTracker, activeContracts } from './contracts.js';
 import { GameAudio } from './audio.js';
 import { GearDraft } from './gears.js';
 import { RIVAL_STYLES, STYLE_KEYS, RANDOM_STYLE, RANDOM_STYLE_DETAIL, DEFAULT_STYLE, loadRivalStyle, rollRivalStyle } from './rivalStyles.js';
 import { CosmeticLocker, COSMETICS } from './cosmetics.js';
 import { CIRCUIT_RIVALS, CircuitProgress } from './circuit.js';
+import { createDailyChallenge, DailyProgress } from './daily.js';
+import { WeaponMastery } from './mastery.js';
+import { GhostRecorder, MovementGhost } from './ghost.js';
 import { AimAssist } from './aimAssist.js';
 import { MobileDebug } from './mobileDebug.js';
 import { bindViewportGestureLock } from './viewportGuard.js';
 import { setQuality, configureRenderer, createSkyEnvironment, refreshQuality } from './graphics.js';
 
 bindViewportGestureLock();
+const localDevelopment = ['127.0.0.1', 'localhost'].includes(location.hostname);
+const forcePwa = new URLSearchParams(location.search).has('pwa');
+if ('serviceWorker' in navigator && (!localDevelopment || forcePwa)) {
+  addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js').catch(() => {}));
+}
 const settings = loadSettings();
 applySettings(settings);
 setQuality(settings.quality);
@@ -52,6 +60,11 @@ const contracts = new ContractTracker();
 const locker = new CosmeticLocker();
 const gearDraft = new GearDraft();
 const circuitProgress = new CircuitProgress();
+const dailyChallenge = createDailyChallenge();
+const dailyProgress = new DailyProgress(dailyChallenge.day);
+const mastery = new WeaponMastery();
+const rangeRecorder = new GhostRecorder();
+const rangeGhost = new MovementGhost(scene);
 const clock = new THREE.Clock();
 scene.add(camera);
 weapon.setCosmetics(locker.loadout());
@@ -68,6 +81,8 @@ let state = 'menu';
 let mode = 'duel';
 let roundTarget = 5;
 let circuitIndex = 0;
+let activeRoute = CIRCUIT_RIVALS;
+let activeProgress = circuitProgress;
 const rivalAccent = () => activeRival ? parseInt(activeRival.color.slice(1), 16) : null; // サーキットのライバルは同じ戦闘スタイルでも専用色で見分けられるようにする。
 let circuitRunKeys = 0;
 let lastMatchWon = false;
@@ -76,6 +91,7 @@ let playerRounds = 0;
 let rivalRounds = 0;
 let roundToken = 0;
 let rangeTarget = 0;
+let mechanicCooldown = 0;
 let pendingRewards = [];
 let stats = freshStats();
 
@@ -92,13 +108,29 @@ function selectDifficulty(value) {
   config = DIFFICULTIES[value];
   localStorage.setItem('firstBlastDifficulty', value);
   document.querySelectorAll('#difficulty button').forEach(button => button.classList.toggle('selected', button.dataset.value === value));
+  document.querySelectorAll('#difficulty button').forEach(button => {
+    button.setAttribute('role', 'radio');
+    button.setAttribute('aria-checked', button.dataset.value === value);
+  });
+  updateQuickSummary();
+}
+
+function updateArenaMechanics(dt) {
+  mechanicCooldown = Math.max(0, mechanicCooldown - dt);
+  if (mechanicCooldown || !player.grounded) return;
+  const pad = arenaRoot.userData.jumpPads?.find(position =>
+    Math.hypot(player.position.x - position.x, player.position.z - position.z) < 1.25);
+  if (!pad) return;
+  mechanicCooldown = 1.2;
+  player.launch(17.5);
+  ui.feed('SUMMIT ジャンプパッド', true);
 }
 
 document.querySelectorAll('#difficulty button').forEach(button => { button.onclick = () => selectDifficulty(button.dataset.value); });
-selectDifficulty(difficultyKey);
 let appliedQuality = settings.quality;
 bindSettings(settings, () => {
   audio.settings = settings;
+  audio.sync();
   if (settings.quality === appliedQuality) return;
   appliedQuality = settings.quality;
   refreshQuality(renderer, scene, settings.quality);
@@ -106,12 +138,22 @@ bindSettings(settings, () => {
 
 const isRandomStyle = () => rivalStyleKey === RANDOM_STYLE;
 
+function updateQuickSummary() {
+  const summary = document.getElementById('quickSummary');
+  if (!summary) return;
+  const style = isRandomStyle() ? 'ランダム' : rivalStyle.name;
+  summary.textContent = `${DIFFICULTIES[difficultyKey].label} · ${style} · ${ARENA_MAPS[arenaMapKey].name}`;
+}
+
+selectDifficulty(difficultyKey);
+
 // スタイルの一覧はrivalStyles.jsが持つ。増やしてもメニューのボタンは自動で増える。
 function renderRivalStyles() {
   const container = document.getElementById('rivalStyle');
   container.replaceChildren(...[RANDOM_STYLE, ...STYLE_KEYS].map(key => {
     const button = document.createElement('button');
     button.dataset.value = key;
+    button.setAttribute('role', 'radio');
     button.textContent = key === RANDOM_STYLE ? 'ランダム' : RIVAL_STYLES[key].name;
     button.onclick = () => selectRivalStyle(key);
     return button;
@@ -123,8 +165,10 @@ function selectRivalStyle(value) {
   rivalStyle = RIVAL_STYLES[rivalStyleKey] || DEFAULT_STYLE;
   localStorage.setItem('firstBlastRivalStyle', rivalStyleKey);
   document.querySelectorAll('#rivalStyle button').forEach(button => button.classList.toggle('selected', button.dataset.value === rivalStyleKey));
+  document.querySelectorAll('#rivalStyle button').forEach(button => button.setAttribute('aria-checked', button.dataset.value === rivalStyleKey));
   document.getElementById('styleHint').textContent = isRandomStyle() ? RANDOM_STYLE_DETAIL : rivalStyle.detail;
   ui.setRivalStyle(isRandomStyle() ? { label: 'ランダム' } : rivalStyle);
+  updateQuickSummary();
 }
 
 // デュエルで実際に使うスタイル。武器もスタイルに紐づくので、戦い方と攻撃手段が一緒に変わる。
@@ -161,31 +205,56 @@ function selectArenaMap(value) {
   arenaMapKey = value;
   localStorage.setItem('firstBlastArenaMap', value);
   document.querySelectorAll('#arenaMap button').forEach(button => button.classList.toggle('selected', button.dataset.value === value));
+  document.querySelectorAll('#arenaMap button').forEach(button => button.setAttribute('aria-checked', button.dataset.value === value));
   document.getElementById('mapHint').textContent = ARENA_MAPS[value].detail;
   if (state === 'menu') ensureArena(value);
+  updateQuickSummary();
 }
 
 document.querySelectorAll('#arenaMap button').forEach(button => { button.onclick = () => selectArenaMap(button.dataset.value); });
 selectArenaMap(arenaMapKey);
 
 function renderCircuitRecord() {
-  document.getElementById('circuitRecord').textContent = `最高 ${circuitProgress.data.bestStage}/5 · ${circuitProgress.formatTime()}`;
+  const resume = circuitProgress.hasRun ? ` · 続き ${circuitProgress.data.run.stage + 1}/5` : '';
+  document.getElementById('circuitRecord').textContent = `最高 ${circuitProgress.data.bestStage}/5 · ${circuitProgress.formatTime()}${resume}`;
+  const dailyResume = dailyProgress.hasRun ? ` · 続き ${dailyProgress.data.run.stage + 1}/3` : '';
+  document.getElementById('dailyRecord').textContent = `本日 ${dailyProgress.data.bestStage}/3 · ${dailyProgress.formatTime()}${dailyResume}`;
 }
 
 function startCircuit() {
   audio.unlock();
   mode = 'circuit';
+  activeRoute = CIRCUIT_RIVALS;
+  activeProgress = circuitProgress;
+  const run = circuitProgress.resume();
+  circuitIndex = run.stage;
+  circuitRunKeys = run.runKeys;
+  showCircuitCard();
+}
+
+function startDaily() {
+  audio.unlock();
+  mode = 'daily';
+  activeRoute = dailyChallenge.rivals;
+  activeProgress = dailyProgress;
+  const run = dailyProgress.resume();
+  circuitIndex = run.stage;
+  circuitRunKeys = run.runKeys;
+  showCircuitCard();
+}
+
+function restartCircuit() {
+  activeProgress.abandon();
+  activeProgress.start();
   circuitIndex = 0;
   circuitRunKeys = 0;
-  circuitProgress.start();
   showCircuitCard();
 }
 
 function showCircuitCard() {
   roundToken++;
   state = 'circuit';
-  mode = 'circuit';
-  activeRival = CIRCUIT_RIVALS[circuitIndex];
+  activeRival = activeRoute[circuitIndex];
   activeStyle = RIVAL_STYLES[activeRival.style];
   activeWeapon = activeRival.weapon;
   ensureArena(activeRival.map);
@@ -195,7 +264,8 @@ function showCircuitCard() {
   setPanel('circuit', true);
   const card = document.querySelector('.circuit-card');
   card.style.setProperty('--rival-color', activeRival.color);
-  document.getElementById('circuitStage').textContent = `ステージ ${circuitIndex + 1} / ${CIRCUIT_RIVALS.length}`;
+  const routeLabel = mode === 'daily' ? `デイリー ${dailyChallenge.day}` : 'ライバルサーキット';
+  document.getElementById('circuitStage').textContent = `${routeLabel} · ${circuitIndex + 1} / ${activeRoute.length}`;
   document.getElementById('circuitKeys').textContent = `+${activeRival.reward} キー · ${activeRival.firstTo}本先取`;
   document.getElementById('circuitName').textContent = activeRival.name;
   document.getElementById('circuitTitle').textContent = activeRival.title;
@@ -205,9 +275,9 @@ function showCircuitCard() {
   document.getElementById('circuitMap').textContent = ARENA_MAPS[activeRival.map].name;
   document.getElementById('circuitWeakness').textContent = activeRival.weakness;
   document.getElementById('rivalEmblem').textContent = activeRival.name[0];
-  document.getElementById('circuitLaunch').textContent = circuitIndex === CIRCUIT_RIVALS.length - 1 ? '王者に挑戦' : '挑戦する';
+  document.getElementById('circuitLaunch').textContent = circuitIndex === activeRoute.length - 1 ? '最終戦へ' : '挑戦する';
   const route = document.getElementById('circuitRoute');
-  route.replaceChildren(...CIRCUIT_RIVALS.map((_, index) => {
+  route.replaceChildren(...activeRoute.map((_, index) => {
     const node = document.createElement('i');
     node.className = index < circuitIndex ? 'done' : index === circuitIndex ? 'active' : '';
     return node;
@@ -235,8 +305,10 @@ function launchCircuitMatch() {
 }
 
 document.getElementById('circuitButton').onclick = startCircuit;
+document.getElementById('dailyButton').onclick = startDaily;
 document.getElementById('circuitLaunch').onclick = launchCircuitMatch;
 document.getElementById('circuitMenu').onclick = () => showMenu();
+document.getElementById('circuitRestart').onclick = restartCircuit;
 
 function switchWeapon(index) {
   if (!['playing', 'range'].includes(state)) return;
@@ -264,7 +336,9 @@ function renderLoadout() {
     LOADOUT_OPTIONS[slot].forEach(definition => {
       const button = document.createElement('button');
       button.className = `loadout-option ${currentLoadout[slot] === definition.id ? 'selected' : ''}`;
-      button.innerHTML = `<span>${definition.name}</span><small>${definition.description}</small>`;
+      const progress = mastery.summary(definition.id);
+      const masteryText = progress.maxed ? `熟練 Lv.${progress.level} · MAX` : `熟練 Lv.${progress.level} · ${progress.xp}/${progress.next}`;
+      button.innerHTML = `<span>${definition.name}</span><small>${definition.description}</small><em>${masteryText}</em>`;
       button.onclick = () => {
         currentLoadout[slot] = definition.id;
         saveLoadout(currentLoadout);
@@ -283,7 +357,7 @@ function renderContracts() {
   document.getElementById('contractKeys').textContent = contracts.keys;
   const list = document.getElementById('contractList');
   list.replaceChildren();
-  CONTRACTS.forEach(contract => {
+  activeContracts(contracts.data.daily.day).forEach(contract => {
     const progress = contracts.progress(contract);
     const row = document.createElement('div');
     row.className = `contract ${progress >= contract.target ? 'done' : ''}`;
@@ -330,7 +404,7 @@ function renderCosmetics() {
 function record(statName, amount = 1) {
   const completed = contracts.record(statName, amount);
   if (completed.length) pendingRewards.push(...completed);
-  renderContracts();
+  if (completed.length || state === 'menu') renderContracts();
 }
 
 player.onSlide = () => {
@@ -350,7 +424,7 @@ document.querySelectorAll('.close-panel').forEach(button => {
 });
 
 function preparePlayView() {
-  ['start', 'loadout', 'locker', 'contracts', 'settings', 'message', 'circuit'].forEach(id => setPanel(id, false));
+  ['start', 'onboarding', 'loadout', 'locker', 'contracts', 'settings', 'message', 'circuit'].forEach(id => setPanel(id, false));
   document.getElementById('hud').classList.remove('hidden');
   configureHudSlots();
   if (!controls.mobile) renderer.domElement.requestPointerLock();
@@ -379,6 +453,17 @@ function startDuel() {
   beginRound();
 }
 
+function requestDuelStart() {
+  audio.unlock();
+  if (localStorage.getItem('firstBlastOnboardingV1') !== 'done') {
+    state = 'onboarding';
+    setPanel('start', false);
+    setPanel('onboarding', true);
+    return;
+  }
+  startDuel();
+}
+
 function startRange() {
   audio.unlock();
   ensureArena('crossline');
@@ -390,6 +475,8 @@ function startRange() {
   state = 'range';
   roundToken++;
   rangeTarget = 0;
+  rangeGhost.play(rangeRecorder.load());
+  rangeRecorder.start();
   stats = freshStats();
   pendingRewards = [];
   gearDraft.reset();
@@ -407,8 +494,13 @@ function startRange() {
   ui.showBanner('射撃場', '命中・ヘッドショット・道具を練習', 1250);
 }
 
-document.getElementById('duelButton').onclick = startDuel;
+document.getElementById('duelButton').onclick = requestDuelStart;
 document.getElementById('rangeButton').onclick = startRange;
+document.getElementById('onboardingStart').onclick = () => {
+  localStorage.setItem('firstBlastOnboardingV1', 'done');
+  startDuel();
+};
+document.getElementById('onboardingBack').onclick = showMenu;
 
 const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 
@@ -423,7 +515,7 @@ async function beginRound() {
   enemy.respawn(RIVAL_SPAWN);
   weapon.refillAll();
   controls.clearActions();
-  const matchLabel = mode === 'circuit' ? 'CIRCUIT' : 'DUEL';
+  const matchLabel = mode === 'daily' ? 'DAILY' : mode === 'circuit' ? 'CIRCUIT' : 'DUEL';
   ui.setRounds(playerRounds, rivalRounds, roundNumber, matchLabel, roundTarget);
   // カウントダウン中は state が playing ではないため、ループ側で経過時間は進まない。
   ui.startRoundClock();
@@ -440,7 +532,10 @@ async function beginRound() {
     await delay(520);
   }
   if (token !== roundToken || state !== 'countdown') return;
-  ui.showBanner('ブラスト！', '開始', 520);
+  ui.showBanner('ブラスト！', '開始', 300, true);
+  await delay(300);
+  if (token !== roundToken || state !== 'countdown') return;
+  ui.hideBanner();
   state = 'playing';
 }
 
@@ -461,7 +556,7 @@ function finishRound(playerWon) {
     rivalRounds++;
     ui.feed('ライバル ▸ 自分');
   }
-  ui.setRounds(playerRounds, rivalRounds, roundNumber, mode === 'circuit' ? 'CIRCUIT' : 'DUEL', roundTarget);
+  ui.setRounds(playerRounds, rivalRounds, roundNumber, mode === 'daily' ? 'DAILY' : mode === 'circuit' ? 'CIRCUIT' : 'DUEL', roundTarget);
   ui.showBanner(playerWon ? 'ラウンド勝利' : 'ラウンド敗北', `${playerRounds} — ${rivalRounds}`);
   if (playerRounds >= roundTarget || rivalRounds >= roundTarget) {
     setTimeout(() => finishMatch(playerRounds >= roundTarget), 1200);
@@ -512,7 +607,7 @@ function finishMatch(win) {
   enemy.gameEnded = true;
   enemy.clearShots();
   weapon.clearProjectiles();
-  if (mode === 'circuit') {
+  if (mode === 'circuit' || mode === 'daily') {
     finishCircuitMatch(win);
     return;
   }
@@ -535,11 +630,11 @@ function finishCircuitMatch(win) {
     return;
   }
 
-  circuitProgress.recordWin(circuitIndex);
   contracts.earn(activeRival.reward);
   circuitRunKeys += activeRival.reward + contractKeys;
+  activeProgress.recordWin(circuitIndex, circuitRunKeys);
   renderContracts();
-  const finalStage = circuitIndex === CIRCUIT_RIVALS.length - 1;
+  const finalStage = circuitIndex === activeRoute.length - 1;
   if (!finalStage) {
     state = 'circuitTransition';
     audio.play('victory');
@@ -552,17 +647,28 @@ function finishCircuitMatch(win) {
     return;
   }
 
-  const elapsed = circuitProgress.complete();
-  locker.grant('finish-zero');
-  locker.grant('title-circuit');
-  weapon.setCosmetics(locker.loadout());
+  const elapsed = activeProgress.complete();
+  if (mode === 'circuit') {
+    locker.grant('finish-zero');
+    locker.grant('title-circuit');
+    weapon.setCosmetics(locker.loadout());
+  } else {
+    contracts.earn(2);
+    circuitRunKeys += 2;
+  }
   renderCircuitRecord();
   audio.play('victory');
   document.getElementById('again').textContent = 'もう一度挑戦';
-  ui.end(true, playerRounds, rivalRounds, stats, `${circuitRunKeys} キー · ${circuitProgress.formatTime(elapsed)}`, 'サーキット王者', activeRival.name);
+  const resultTitle = mode === 'daily' ? 'デイリーブレイカー' : 'サーキット王者';
+  ui.end(true, playerRounds, rivalRounds, stats, `${circuitRunKeys} キー · ${activeProgress.formatTime(elapsed)}`, resultTitle, activeRival.name);
 }
 
 function showMenu() {
+  if (state === 'range') {
+    rangeRecorder.finish();
+    rangeGhost.stop();
+  }
+  if ((mode === 'circuit' || mode === 'daily') && activeProgress.hasRun) activeProgress.pause();
   roundToken++;
   state = 'menu';
   ui.stopRoundClock();
@@ -573,7 +679,7 @@ function showMenu() {
   ui.hideBanner();
   document.exitPointerLock?.();
   document.getElementById('hud').classList.add('hidden');
-  ['message', 'loadout', 'locker', 'contracts', 'settings', 'gearSelect', 'circuit'].forEach(id => setPanel(id, false));
+  ['message', 'onboarding', 'loadout', 'locker', 'contracts', 'settings', 'gearSelect', 'circuit'].forEach(id => setPanel(id, false));
   setPanel('start', true);
   activeRival = null;
   rolledStyleKey = null;
@@ -595,8 +701,10 @@ document.getElementById('hudToggle').onclick = event => {
 };
 document.getElementById('resultMenu').onclick = showMenu;
 document.getElementById('again').onclick = () => {
-  if (mode !== 'circuit') { startDuel(); return; }
-  if (lastMatchWon && circuitIndex === CIRCUIT_RIVALS.length - 1) startCircuit();
+  if (mode !== 'circuit' && mode !== 'daily') { startDuel(); return; }
+  if (lastMatchWon && circuitIndex === activeRoute.length - 1) {
+    if (mode === 'daily') startDaily(); else startCircuit();
+  }
   else showCircuitCard();
 };
 
@@ -621,6 +729,7 @@ function hurt(amount, source) {
   stats.damageTaken += player.takeDamage(amount);
   ui.damageTaken(source || enemy.group.position, player.hp / player.maxHp);
   audio.play('oof');
+  player.addShake(.06);
   if (player.hp > 0 && player.hp / player.maxHp < .3) audio.play('danger');
   if (player.hp <= 0) finishRound(false);
 }
@@ -628,10 +737,14 @@ function hurt(amount, source) {
 const weaponHandlers = {
   onFire(info) {
     if (info.slot === 'primary' || info.slot === 'secondary') stats.shots++;
+    mastery.recordShot(info.weaponId);
+    player.addShake(info.slot === 'primary' ? .016 : .011);
   },
   onDamage(damage, position, meta) {
+    mastery.recordDamage(meta.weaponId, damage, meta.kill);
     if (!meta.utility && !meta.melee) stats.hits++;
     stats.damage += damage;
+    record('damage', damage);
     stats.bestHit = Math.max(stats.bestHit, damage);
     if (meta.headshot) { stats.headshots++; record('headshots'); }
     if (meta.utility) record('utilityHits');
@@ -664,10 +777,15 @@ function loop() {
       active,
     });
     player.update(dt, input, controls.look, assist);
+    updateArenaMechanics(dt);
     weapon.update(dt, input, player, enemy, obstacles, weaponHandlers);
     enemy.update(dt, player, hurt);
     ui.update(player, weapon, enemy, frameSeconds);
     mobileDebug.update(dt, touchAimAssist.debugState, player.jumpDebug(), controls);
+    if (state === 'range') {
+      rangeRecorder.update(dt, player);
+      rangeGhost.update(dt);
+    }
   }
   effects.update(dt);
   renderer.render(scene, camera);
@@ -688,3 +806,8 @@ addEventListener('resize', () => {
   weapon.layout();
 });
 addEventListener('contextmenu', event => event.preventDefault());
+addEventListener('visibilitychange', () => {
+  if ((mode !== 'circuit' && mode !== 'daily') || !activeProgress.hasRun) return;
+  if (document.hidden) activeProgress.pause();
+  else if (state !== 'menu') activeProgress.resume();
+});

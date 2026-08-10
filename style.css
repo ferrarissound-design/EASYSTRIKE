@@ -73,10 +73,30 @@ button:focus-visible { outline: 3px solid #75efff; outline-offset: 3px; }
 .map-choices { margin-top: 18px; margin-bottom: 7px; }
 .style-hint { min-height: 15px; margin: 0 0 8px !important; color: #8cecff !important; font-size: 10px; font-weight: 800; letter-spacing: .04em; }
 .mode-actions { display: flex; justify-content: center; align-items: center; gap: 10px; }
+.match-options { margin: 18px auto 20px; padding: 0 16px 15px; border: 1px solid #ffffff1f; border-radius: 16px; background: #0711267d; }
+.match-options summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 2px; cursor: pointer; color: #fff; font-weight: 900; list-style: none; }
+.match-options summary::-webkit-details-marker { display: none; }
+.match-options summary::after { content: '＋'; color: #6eeaff; font-size: 18px; }
+.match-options[open] summary::after { content: '−'; }
+.match-options summary small { color: #8fa9d5; font-size: 10px; font-weight: 800; }
+.match-options .menu-label:first-of-type { margin-top: 4px; }
+.tutorial-card { width: min(760px, 95vw); padding: clamp(24px, 5vw, 48px); border: 1px solid #ffffff2e; border-radius: 28px; background: linear-gradient(145deg, #17284af5, #101a34fa); text-align: center; box-shadow: 0 30px 90px #0009; }
+.tutorial-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 24px 0 18px; }
+.tutorial-steps article { padding: 20px 14px; border-radius: 16px; background: #ffffff0d; }
+.tutorial-steps article > b { display: grid; place-items: center; width: 36px; height: 36px; margin: 0 auto 10px; border-radius: 50%; background: #5ee6ff; color: #071126; }
+.tutorial-steps h3 { margin: 0 0 7px; }
+.tutorial-steps p, .tutorial-tip { color: #b7c7e5; line-height: 1.55; }
+.tutorial-actions { display: flex; justify-content: center; align-items: center; gap: 10px; }
+.touch-help { display: none; }
+:is(.touch, .force-touch) .desktop-help { display: none; }
+:is(.touch, .force-touch) .touch-help { display: inline; }
 .primary { padding: 15px 32px; border-radius: 15px; background: linear-gradient(135deg, #ff8a3d, #ff3e71); font-size: 18px; box-shadow: 0 6px 0 #a92851; margin: 10px; }
 .circuit-button { display: flex; justify-content: space-between; align-items: center; width: min(410px, 100%); margin: 11px auto 2px; padding: 12px 15px; border: 1px solid #ff5d9b7a; border-radius: 12px; background: linear-gradient(100deg, #ff4e761f, #7b54ff24); }
 .circuit-button span { font-weight: 1000; letter-spacing: .1em; }
 .circuit-button small { margin: 0; color: #ffd66b; font-size: 9px; }
+.daily-button { display: flex; justify-content: space-between; align-items: center; width: min(410px, 100%); margin: 7px auto 2px; padding: 12px 15px; border: 1px solid #62e8ff70; border-radius: 12px; background: linear-gradient(100deg, #1b8db72c, #7654ff24); }
+.daily-button span { font-weight: 1000; letter-spacing: .1em; }
+.daily-button small { margin: 0; color: #75edff; font-size: 9px; }
 .primary:active { transform: translateY(4px); box-shadow: 0 2px 0 #a92851; }
 .range-button { font-size: 16px; padding: 15px 25px; }
 .menu-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
@@ -92,6 +112,7 @@ button:focus-visible { outline: 3px solid #75efff; outline-offset: 3px; }
 .loadout-option { width: 100%; min-height: 92px; margin: 5px 0; padding: 12px; text-align: left; border-radius: 12px; background: #ffffff0c; border: 2px solid transparent; }
 .loadout-option span, .loadout-option small { display: block; }
 .loadout-option small { margin: 5px 0 0; font-size: 10px; color: #aebbd8; }
+.loadout-option em { display: block; margin-top: 8px; color: #68eaff; font-size: 9px; font-style: normal; font-weight: 1000; letter-spacing: .06em; }
 .loadout-option.selected { border-color: #6fe7ff; background: #2a6c9859; }
 .contract-list { display: grid; gap: 9px; margin: 22px 0; }
 .contract { display: grid; grid-template-columns: 1fr auto; gap: 7px 18px; padding: 13px 15px; text-align: left; border-radius: 12px; background: #ffffff0d; }
@@ -149,6 +170,8 @@ button:focus-visible { outline: 3px solid #75efff; outline-offset: 3px; }
 .round-banner { position: fixed; z-index: 18; left: 50%; top: 41%; transform: translate(-50%, -50%); min-width: min(520px, 85vw); padding: 20px 28px; text-align: center; border-radius: 18px; background: #071126d9; box-shadow: 0 20px 60px #0008; pointer-events: none; animation: bannerIn .22s ease-out; }
 .round-banner b { display: block; font-size: clamp(34px, 7vw, 64px); letter-spacing: -.04em; }
 .round-banner small { color: #b9c7e6; font-weight: 800; letter-spacing: .12em; }
+.round-banner.compact { top: 27%; min-width: min(280px, 68vw); padding: 10px 18px; border-radius: 12px; }
+.round-banner.compact b { font-size: clamp(22px, 5vw, 36px); }
 @keyframes bannerIn { from { opacity: 0; transform: translate(-50%, -44%) scale(.86); } }
 
 .health, .ammo { position: fixed; z-index: 9; bottom: calc(20px + env(safe-area-inset-bottom)); pointer-events: none; text-shadow: 0 2px 4px #000; }
@@ -186,6 +209,7 @@ button:focus-visible { outline: 3px solid #75efff; outline-offset: 3px; }
 .circuit-intel b { color: var(--rival-color); font-size: 9px; letter-spacing: .15em; }
 .circuit-intel p { margin: 5px 0 0; color: #d0daed; font-size: 12px; }
 .circuit-actions { display: flex; justify-content: center; align-items: center; margin-top: 13px; }
+.quiet-button { padding: 10px 12px; border-color: transparent; background: transparent; color: #90a5ca; font-size: 10px; }
 .gear-choices { display: grid; grid-template-columns: repeat(3, minmax(150px, 1fr)); gap: 13px; margin-top: 24px; }
 .gear-choice { position: relative; min-height: 190px; padding: 24px 16px; border: 2px solid #ffffff25; border-radius: 18px; background: linear-gradient(150deg, #263e66, #111a35); text-align: center; transition: transform .15s, border-color .15s, background .15s; }
 .gear-choice:hover, .gear-choice:focus-visible { transform: translateY(-7px); border-color: #6eeaff; background: linear-gradient(150deg, #2d6284, #162348); }
@@ -432,6 +456,13 @@ body[data-fire-position="high"] { --fire-bottom: 48px; }
 
 /* 狭い画面では、中央のスコアが左上のアイコン列に被らないところまで詰める。 */
 @media (max-width: 560px) {
+  .tutorial-steps { grid-template-columns: 1fr; gap: 8px; }
+  .tutorial-steps article { padding: 12px; }
+  .tutorial-steps article > b { float: left; margin: 0 12px 0 0; }
+  .tutorial-steps h3, .tutorial-steps p { text-align: left; }
+  .match-options { padding-inline: 10px; }
+  .match-options summary { align-items: flex-start; }
+  .match-options summary small { max-width: 170px; text-align: right; }
   .scoreboard { gap: 5px; }
   .score-side { width: 74px; padding: 5px 9px 11px; column-gap: 6px; }
   .score-side b { font-size: 20px; }

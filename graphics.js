@@ -53,7 +53,9 @@ export function createSkyEnvironment(renderer, zenith = 0x3b82df, horizon = 0xe8
 // by roughness instead of all reading as the same matte plastic.
 export function surfaceMaterial(color, options = {}) {
   const { roughness = .82, metalness = 0, flatShading = true, emissive, emissiveIntensity, map, envMapIntensity = .32 } = options;
-  const shared = { color, flatShading, map };
+  const shared = { color, flatShading };
+  // Three.js warns when an optional texture is explicitly passed as undefined.
+  if (map) shared.map = map;
   if (emissive !== undefined) shared.emissive = emissive;
   if (emissiveIntensity !== undefined) shared.emissiveIntensity = emissiveIntensity;
   if (level === 'low') return new THREE.MeshLambertMaterial(shared);

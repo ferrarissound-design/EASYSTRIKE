@@ -259,7 +259,7 @@ export class Weapon {
     }
     this.cooldowns[index] = definition.rate / this.modifiers.fireRate;
     if (Number.isFinite(this.ammo[index])) this.ammo[index]--;
-    handlers.onFire?.({ slot: definition.slot, utility: definition.slot === 'utility' });
+    handlers.onFire?.({ slot: definition.slot, weaponId: definition.id, utility: definition.slot === 'utility' });
     this.audio.play(definition.sound);
     this.kick = Math.min(1, this.kick + (definition.projectile ? .85 : definition.melee ? .35 : .55));
     const model = this.models[index];
@@ -303,7 +303,7 @@ export class Weapon {
     enemy.damage(damage);
     this.effects.burst(hitPoint, headshot ? 0xffdf55 : effectColor, 5, .1, .3);
     this.audio.play(headshot ? 'headshot' : 'hit');
-    handlers.onDamage?.(damage, enemy.labelPoint, { headshot, kill: enemy.hp <= 0, utility: false, pushDirection: this.ray.ray.direction.clone() });
+    handlers.onDamage?.(damage, enemy.labelPoint, { weaponId: definition.id, headshot, kill: enemy.hp <= 0, utility: false, pushDirection: this.ray.ray.direction.clone() });
   }
 
   fireMelee(definition, enemy, obstacles, handlers) {
@@ -314,7 +314,7 @@ export class Weapon {
     const damage = Math.round(definition.damage * this.modifiers.damage);
     enemy.damage(damage);
     this.effects.burst(enemyHit.point, this.effectColor(definition), 7, .11, .3);
-    handlers.onDamage?.(damage, enemy.labelPoint, { melee: true, kill: enemy.hp <= 0, pushDirection: this.ray.ray.direction.clone() });
+    handlers.onDamage?.(damage, enemy.labelPoint, { weaponId: definition.id, melee: true, kill: enemy.hp <= 0, pushDirection: this.ray.ray.direction.clone() });
   }
 
   useHeal(definition, player, handlers) {
@@ -365,7 +365,7 @@ export class Weapon {
       const damage = Math.max(0, Math.round(shot.definition.damage * this.modifiers.damage * (1 - distance / radius)));
       if (damage) {
         enemy.damage(damage);
-        handlers.onDamage?.(damage, enemy.labelPoint, { utility: shot.kind === 'grenade', kill: enemy.hp <= 0, pushDirection: shot.velocity.clone().normalize() });
+        handlers.onDamage?.(damage, enemy.labelPoint, { weaponId: shot.definition.id, utility: shot.kind === 'grenade', kill: enemy.hp <= 0, pushDirection: shot.velocity.clone().normalize() });
         if (shot.kind === 'grenade') handlers.onUtility?.('hit');
       }
       this.effects.burst(shot.mesh.position, this.effectColor(shot.definition), shot.kind === 'grenade' ? 18 : 12, .22, .55);

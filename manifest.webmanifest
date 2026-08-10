@@ -1,0 +1,13 @@
+{
+  "name": "FIRST BLAST",
+  "short_name": "FIRST BLAST",
+  "description": "1対1 高速アリーナFPS",
+  "start_url": "./",
+  "display": "fullscreen",
+  "background_color": "#071126",
+  "theme_color": "#13264a",
+  "orientation": "any",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
