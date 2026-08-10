@@ -10,6 +10,7 @@ const checks = [
   'verify-contracts.mjs',
   'verify-navigation.mjs',
   'verify-ghost.mjs',
+  'verify-balance.mjs',
 ];
 
 for (const check of checks) {
