@@ -1,4 +1,4 @@
-const CACHE = 'first-blast-v3';
+const CACHE = 'first-blast-v4';
 const SHELL = [
   './', './index.html', './style.css', './manifest.webmanifest', './icon.svg',
   './vendor/three.module.js', './main.js', './arena.js', './controls.js', './player.js',
@@ -6,7 +6,8 @@ const SHELL = [
   './contracts.js', './audio.js', './gears.js', './rivalStyles.js', './cosmetics.js',
   './circuit.js', './aimAssist.js', './mobileDebug.js', './viewportGuard.js', './graphics.js',
   './enemyWeapons.js', './enemyTactics.js', './enemyMovement.js', './mobileTuning.js',
-  './jumpController.js', './collision.js', './daily.js', './mastery.js', './navigation.js', './ghost.js'
+  './jumpController.js', './collision.js', './daily.js', './mastery.js', './navigation.js', './ghost.js',
+  './beyond_the_last_checkpoint.mp3'
 ];
 
 self.addEventListener('install', event => {

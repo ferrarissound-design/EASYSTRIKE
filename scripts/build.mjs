@@ -10,7 +10,7 @@ await mkdir(join(dist, 'vendor'), { recursive: true });
 
 for (const entry of rootFiles) {
   if (!entry.isFile()) continue;
-  if (!/\.(?:js|css|html|webmanifest|svg)$/.test(entry.name)) continue;
+  if (!/\.(?:js|css|html|webmanifest|svg|mp3)$/.test(entry.name)) continue;
   await cp(join(root, entry.name), join(dist, entry.name));
 }
 

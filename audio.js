@@ -1,3 +1,6 @@
+// トラック本体は生演奏より音量が大きいので、BGMスライダーの値にこの係数をかけて少し控えめにする。
+const MUSIC_TRACK_ATTENUATION = 0.6;
+
 export class GameAudio {
   constructor(settings) {
     this.settings = settings;
@@ -5,6 +8,7 @@ export class GameAudio {
     this.sfxBus = null;
     this.musicBus = null;
     this.musicStarted = false;
+    this.musicElement = null;
   }
 
   unlock() {
@@ -24,22 +28,18 @@ export class GameAudio {
     if (!this.context) return;
     const now = this.context.currentTime;
     this.sfxBus.gain.setTargetAtTime(this.settings.sfx / 100, now, .03);
-    this.musicBus.gain.setTargetAtTime(this.settings.bgm / 100, now, .12);
+    this.musicBus.gain.setTargetAtTime(this.settings.bgm / 100 * MUSIC_TRACK_ATTENUATION, now, .12);
   }
 
   startMusic() {
     if (this.musicStarted || !this.context) return;
     this.musicStarted = true;
-    // A quiet procedural pad keeps the game self-contained and works offline.
-    [[55, 'sine', .018], [82.5, 'triangle', .009]].forEach(([frequency, type, volume]) => {
-      const oscillator = this.context.createOscillator();
-      const gain = this.context.createGain();
-      oscillator.type = type;
-      oscillator.frequency.value = frequency;
-      gain.gain.value = volume;
-      oscillator.connect(gain).connect(this.musicBus);
-      oscillator.start();
-    });
+    this.musicElement = new Audio('./beyond_the_last_checkpoint.mp3');
+    this.musicElement.loop = true;
+    this.musicElement.preload = 'auto';
+    const source = this.context.createMediaElementSource(this.musicElement);
+    source.connect(this.musicBus);
+    this.musicElement.play().catch(() => {});
   }
 
   play(name) {
