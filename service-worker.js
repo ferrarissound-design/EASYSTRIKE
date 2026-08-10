@@ -1,4 +1,4 @@
-const CACHE = 'first-blast-v2';
+const CACHE = 'first-blast-v3';
 const SHELL = [
   './', './index.html', './style.css', './manifest.webmanifest', './icon.svg',
   './vendor/three.module.js', './main.js', './arena.js', './controls.js', './player.js',
@@ -21,9 +21,24 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
-  event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
-    const copy = response.clone();
-    caches.open(CACHE).then(cache => cache.put(event.request, copy));
-    return response;
-  })));
+  event.respondWith((async () => {
+    const cached = await caches.match(event.request);
+    if (cached) return cached;
+
+    try {
+      const response = await fetch(event.request);
+      const url = new URL(event.request.url);
+      if (response.ok && url.origin === self.location.origin) {
+        const cache = await caches.open(CACHE);
+        await cache.put(event.request, response.clone());
+      }
+      return response;
+    } catch (error) {
+      if (event.request.mode === 'navigate') {
+        const fallback = await caches.match('./index.html');
+        if (fallback) return fallback;
+      }
+      throw error;
+    }
+  })());
 });
