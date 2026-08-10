@@ -151,6 +151,7 @@ function studPattern() {
 export function createArena(scene, colliders, mapKey = 'crossline', sharedObstacles = []) {
   const root = new THREE.Group();
   root.name = `arena-${mapKey}`;
+  root.userData.jumpPads = [];
   const obstacles = sharedObstacles;
   colliders.length = 0;
   obstacles.length = 0;
@@ -275,6 +276,13 @@ export function createArena(scene, colliders, mapKey = 'crossline', sharedObstac
     mirroredBlock(-5.5, 6, 2.2, 1.4, 2.2, COLOR.block);
     block(0, 0, 2.6, 1.15, 2.6, COLOR.white, Math.PI / 4);
   } else if (summit) {
+    // SUMMIT固有の移動ギミック。外周から高所ルートへ素早く移れる。
+    [15, -15].forEach(z => {
+      const pad = add(new THREE.CylinderGeometry(1.15, 1.3, .12, 24), SNOW.ice, 0, .06, z, false);
+      pad.material.emissive = new THREE.Color(0x55cfff);
+      pad.material.emissiveIntensity = .45;
+      root.userData.jumpPads.push(new THREE.Vector3(0, 0, z));
+    });
     // Pinwheel core: the two long walls break every spawn-to-spawn line while leaving
     // a diagonal rotation route open, the way the reference map's central base plays.
     mirroredBlock(-3, 4, 9, 3.6, 2.4, SNOW.panel);

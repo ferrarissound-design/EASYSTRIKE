@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <title>FIRST BLAST</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#13264a">
   <script>
     // タッチ配置はCSSだけで決まるようにする。controls.js が付ける body.force-touch と
     // 同じ条件をここで html にも付けておき、初回描画からズレないようにする。
@@ -21,27 +23,32 @@
       <p class="eyebrow">1対1 高速アリーナFPS</p>
       <h1>FIRST <span>BLAST</span></h1>
       <p class="lead">一命を賭けたラウンドを、先に5本取れ。</p>
-      <div class="choices" id="difficulty" aria-label="CPU難易度">
+      <details id="matchOptions" class="match-options">
+        <summary><span>対戦設定</span><small id="quickSummary">ルーキー · ランダム · クロスライン</small></summary>
+      <p class="menu-label">CPU難易度</p>
+      <div class="choices" id="difficulty" role="radiogroup" aria-label="CPU難易度">
         <button data-value="easy" class="selected">ルーキー</button>
         <button data-value="normal">ライバル</button>
         <button data-value="challenge">エース</button>
       </div>
       <p class="menu-label">ライバルの戦い方</p>
-      <div class="choices style-choices" id="rivalStyle" aria-label="CPU戦闘スタイル"></div>
+      <div class="choices style-choices" id="rivalStyle" role="radiogroup" aria-label="CPU戦闘スタイル"></div>
       <small id="styleHint" class="style-hint">ラウンドごとに戦い方と武器が入れ替わる</small>
       <p class="menu-label">アリーナ</p>
-      <div class="choices map-choices" id="arenaMap" aria-label="アリーナ選択">
+      <div class="choices map-choices" id="arenaMap" role="radiogroup" aria-label="アリーナ選択">
         <button data-value="crossline" class="selected">クロス</button>
         <button data-value="pocket">ポケット</button>
         <button data-value="longshot">ロング</button>
         <button data-value="summit">サミット</button>
       </div>
       <small id="mapHint" class="style-hint">3つのルートと使いやすい遮蔽物がある標準アリーナ</small>
+      </details>
       <div class="mode-actions">
-        <button id="duelButton" class="primary">デュエル開始</button>
+        <button id="duelButton" class="primary">クイックデュエル</button>
         <button id="rangeButton" class="range-button">射撃場</button>
       </div>
       <button id="circuitButton" class="circuit-button"><span>ライバルサーキット</span><small id="circuitRecord">最高 0/5 · --:--</small></button>
+      <button id="dailyButton" class="daily-button"><span>デイリーサーキット</span><small id="dailyRecord">本日 0/3 · --:--</small></button>
       <div class="menu-actions">
         <button id="loadoutButton">ロードアウト</button>
         <button id="lockerButton">見た目</button>
@@ -52,11 +59,28 @@
     </div>
   </section>
 
+  <section id="onboarding" class="panel hidden">
+    <div class="tutorial-card">
+      <p class="eyebrow">初回ガイド</p>
+      <h2>3つだけ覚えよう</h2>
+      <div class="tutorial-steps">
+        <article><b>1</b><h3>動く</h3><p><span class="desktop-help">WASD</span><span class="touch-help">左スティック</span>で遮蔽物を渡る</p></article>
+        <article><b>2</b><h3>狙う</h3><p><span class="desktop-help">マウス</span><span class="touch-help">右側スワイプ</span>で照準を合わせる</p></article>
+        <article><b>3</b><h3>撃つ</h3><p><span class="desktop-help">左クリック</span><span class="touch-help">照準ボタン</span>で攻撃する</p></article>
+      </div>
+      <p class="tutorial-tip">迷ったら動き続けよう。敵の弾は遮蔽物で止まります。</p>
+      <div class="tutorial-actions">
+        <button id="onboardingStart" class="primary">戦闘開始</button>
+        <button id="onboardingBack" class="range-button">戻る</button>
+      </div>
+    </div>
+  </section>
+
   <section id="loadout" class="panel hidden">
     <div class="wide-card">
       <p class="eyebrow">装備</p>
       <h2>ロードアウト</h2>
-      <p class="panel-copy">各スロットから1つ選択。選択内容は自動保存されます。</p>
+      <p class="panel-copy">各スロットから1つ選択。実戦で使うほど武器熟練度が上がります。</p>
       <div id="loadoutGrid" class="loadout-grid"></div>
       <button class="primary close-panel" data-close="loadout">完了</button>
     </div>
@@ -207,6 +231,7 @@
       <div class="circuit-actions">
         <button id="circuitLaunch" class="primary">挑戦する</button>
         <button id="circuitMenu" class="range-button">メニュー</button>
+        <button id="circuitRestart" class="quiet-button">最初から</button>
       </div>
     </div>
   </section>
@@ -232,7 +257,7 @@
     </div>
   </section>
 
-  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.module.js"}}</script>
+  <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
   <script type="module" src="main.js"></script>
 </body>
 </html>

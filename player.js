@@ -33,6 +33,7 @@ export class Player {
     this.wasCrouch = false;
     this.slideGrace = 0;
     this.airSpeed = 0;
+    this.shake = 0;
     this.jumpController = new JumpController(settings);
     this.modifiers = { lowHealthSpeed: 1 };
     this.onSlide = null;
@@ -66,6 +67,7 @@ export class Player {
     this.wasCrouch = false;
     this.slideGrace = 0;
     this.airSpeed = 0;
+    this.shake = 0;
     this.jumpController.reset();
     this.camera.rotation.set(0, yaw, 0, 'YXZ');
     this.camera.position.copy(this.position);
@@ -171,8 +173,26 @@ export class Player {
     if (Math.abs(this.eyeOffset - targetOffset) < .01) this.eyeOffset = targetOffset;
     this.position.y = this.feetY + this.eyeOffset;
 
-    this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
+    this.shake = Math.max(0, this.shake - dt * 3.2);
+    const shake = this.settings.cameraShake ? this.shake : 0;
+    const shakePitch = (Math.random() - .5) * shake;
+    const shakeYaw = (Math.random() - .5) * shake;
+    this.camera.rotation.set(this.pitch + shakePitch, this.yaw + shakeYaw, 0, 'YXZ');
     this.camera.position.copy(this.position);
+  }
+
+  addShake(amount = .02) {
+    if (!this.settings.cameraShake) return;
+    this.shake = Math.min(.11, this.shake + amount);
+  }
+
+  launch(force = 17) {
+    this.velocity.y = Math.max(this.velocity.y, force);
+    this.grounded = false;
+    this.sliding = false;
+    this.crouched = false;
+    this.audio.play('jump');
+    this.effects.ring(this.position.clone().setY(this.feetY + .08), 0x5fe8ff);
   }
 
   // 落下・着地・頭ぶつけを解決する。遮蔽物の天面に乗れるのはここの support 判定による。

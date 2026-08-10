@@ -6,6 +6,7 @@ import { rollTactic, tacticById, tacticDuration, steerLean } from './enemyTactic
 import { MOBILE_TUNING } from './mobileTuning.js';
 import { bodyBlocked, ceilingAbove, climbableTop, supportBelow, STEP_HEIGHT, jumpReach } from './collision.js';
 import { surfaceMaterial } from './graphics.js';
+import { findPath } from './navigation.js';
 const FIRE_RANGE=32; // 射撃を始める距離。アリーナの端から端まで届く程度。
 // 移動の当たり判定。プレイヤーと同じ重力・跳躍力を使い、遮蔽物の上へ登れるようにする。
 const BODY_HEIGHT=2,BODY_RADIUS=.7,MOVE_LIMIT=19;
@@ -230,7 +231,7 @@ export class Enemy {
   updateShots(dt,player,onShot){for(const shot of this.shots){if(!shot.active)continue;shot.life-=dt;const previous=shot.mesh.position.clone(),step=shot.velocity.clone().multiplyScalar(dt),distance=step.length(),direction=step.clone().normalize();this.ray.set(previous,direction);const blocker=this.ray.intersectObjects(this.obstacles,false)[0];if(blocker&&blocker.distance<=distance){this.effects.burst(blocker.point,shot.color,2,.07,.16);shot.active=false;shot.mesh.visible=false;continue}shot.mesh.position.add(step);const segment=new THREE.Line3(previous,shot.mesh.position),closest=segment.closestPointToPoint(player.position,true,new THREE.Vector3());if(closest.distanceTo(player.position)<.58){onShot(shot.damage,previous);shot.active=false;shot.mesh.visible=false;continue}if(shot.life<=0){shot.active=false;shot.mesh.visible=false}}}
   clearShots(){this.shots?.forEach(shot=>{shot.active=false;shot.mesh.visible=false})}
   displace(direction,distance=.55){if(!this.alive)return;const flat=direction.clone().setY(0);if(flat.lengthSq()>.001)this.safeMove(flat.normalize(),distance)}
-  update(dt,player,onShot){this.animate(dt);this.updateShots(dt,player,onShot);if(!this.alive)return;this.thinkTimer-=dt;this.shotTimer-=dt;this.tacticTimer-=dt;this.flipTimer-=dt;const toPlayer=player.position.clone().sub(this.group.position),distance=toPlayer.length(),visible=this.canSeePlayer(player);this.group.lookAt(player.position.x,this.group.position.y,player.position.z);
+  update(dt,player,onShot){this.animate(dt);this.updateShots(dt,player,onShot);if(!this.alive)return;this.thinkTimer-=dt;this.shotTimer-=dt;this.tacticTimer-=dt;this.flipTimer-=dt;this.pathTimer-=dt;const toPlayer=player.position.clone().sub(this.group.position),distance=toPlayer.length(),visible=this.canSeePlayer(player);this.group.lookAt(player.position.x,this.group.position.y,player.position.z);
     this.revealTimer=Math.max(0,(this.revealTimer||0)-dt);this.visibleToPlayer=visible||this.revealTimer>0; // HUNTERギア中は遮蔽物越しでも短時間追跡する。
     this.seenTime=visible?this.seenTime+dt:0;                        // プレイヤーを見続けた実時間。これが反応時間を超えると命中させられる。
     // プレイヤーが自分より高い場所にいる間だけ、前が塞がったら登る。平地では跳ねない。
@@ -245,11 +246,20 @@ export class Enemy {
     const tactic=tacticById(this.tacticKey);
     if(tactic.flip&&this.flipTimer<=0){this.strafeDirection*=-1;this.flipTimer=tactic.flip}   // 切り返し系だけは短い周期で左右を入れ替える。
     // 間合いは水平距離で測る。高低差を足すと、真上に登られただけで「近すぎる」と誤判定して下がってしまう。
-    const flatDistance=Math.hypot(toPlayer.x,toPlayer.z),forward=toPlayer.setY(0).normalize(),lateral=new THREE.Vector3(-forward.z,0,forward.x);
+    const flatDistance=Math.hypot(toPlayer.x,toPlayer.z);let forward=toPlayer.setY(0).normalize();
     let goal='fight',lowHp=this.hp<=this.maxHp*.3;
     if(lowHp)goal='retreat';else if(flatDistance>style.preferredMax)goal='approach';else if(flatDistance<style.preferredMin)goal='retreat';
     if(!visible&&goal==='fight')goal='approach';                                             // 見失ったら詰めて探す。
     if(this.climbing&&!lowHp)goal='approach';                                                // 高所に登られたら、横に回り込まず正面から詰めて登り口を探す。
+    if(!visible&&goal==='approach'&&!this.climbing){
+      if(this.pathTimer<=0){
+        this.path=findPath(this.group.position,player.position,(x,z)=>bodyBlocked(this.colliders,x,z,this.group.position.y+.05,this.group.position.y+BODY_HEIGHT,BODY_RADIUS+.12));
+        this.pathTimer=.75;
+      }
+      while(this.path?.length&&Math.hypot(this.path[0].x-this.group.position.x,this.path[0].z-this.group.position.z)<1.2)this.path.shift();
+      if(this.path?.length)forward=new THREE.Vector3(this.path[0].x-this.group.position.x,0,this.path[0].z-this.group.position.z).normalize();
+    }
+    const lateral=new THREE.Vector3(-forward.z,0,forward.x);
     const lean=steerLean(tactic.lean,goal),side=this.climbing&&goal==='approach'?0:tactic.side*this.strafeDirection;
     const direction=forward.clone().multiplyScalar(lean).addScaledVector(lateral,side);
     if(direction.lengthSq()<1e-4){this.moveDirection=null;this.moveSpeed=0;this.moving=false} // 「据え撃ち」。その場に留まって撃つ。
@@ -267,7 +277,7 @@ export class Enemy {
     this.parts.forEach(part=>{part.mesh.position.copy(part.rest);part.mesh.rotation.set(0,0,0)});this.gun.rotation.x=-AIM_ARM;this.exploding=0;
     this.upper.position.y=0;this.legs.forEach(leg=>leg.rotation.set(0,0,0));this.arms[0].rotation.set(0,0,0);this.arms[1].rotation.set(AIM_ARM,0,0);
     this.untint();this.flash(false);this.setFace('normal');this.flashToken++;
-    this.hp=this.maxHp||100;this.alive=true;this.recoil=0;this.moving=false;this.animTime=0;this.moveDirection=null;this.moveSpeed=0;this.velocityY=0;this.airborne=false;this.stuckTimer=0;this.stuckCount=0;this.climbing=false;this.thinkTimer=.25;this.shotTimer=Math.max(.55,(this.config?.reaction??.6)+.35);this.seenTime=0;this.burstShots=0;this.visibleToPlayer=false;this.revealTimer=0;this.strafeDirection=Math.random()<.5?-1:1;
+    this.hp=this.maxHp||100;this.alive=true;this.recoil=0;this.moving=false;this.animTime=0;this.moveDirection=null;this.moveSpeed=0;this.velocityY=0;this.airborne=false;this.stuckTimer=0;this.stuckCount=0;this.climbing=false;this.path=[];this.pathTimer=0;this.thinkTimer=.25;this.shotTimer=Math.max(.55,(this.config?.reaction??.6)+.35);this.seenTime=0;this.burstShots=0;this.visibleToPlayer=false;this.revealTimer=0;this.strafeDirection=Math.random()<.5?-1:1;
     this.tacticKey=null;this.tacticTimer=0;this.flipTimer=0;                    // 最初のthinkで引き直す。ラウンドごとに動き出しが変わる。
     this.effects?.ring(safe,0x7eeeff)}
 }
