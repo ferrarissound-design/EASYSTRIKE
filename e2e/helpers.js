@@ -21,7 +21,7 @@ export function watchRuntimeFailures(page) {
 }
 
 export async function expectGameShell(page) {
-  await expect(page).toHaveTitle('FIRST BLAST');
+  await expect(page).toHaveTitle('EASYSTRIKE');
   await expect(page.locator('#start')).toBeVisible();
   await expect(page.locator('#game canvas')).toHaveCount(1);
 }
