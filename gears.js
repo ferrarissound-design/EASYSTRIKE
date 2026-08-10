@@ -1,7 +1,7 @@
 export const GEARS = [
   { id: 'quick-hands', name: '高速装填', icon: '>>', detail: 'リロード速度が35%アップ', modifiers: { reloadSpeed: 1.54 } },
   { id: 'hunter', name: 'ハンター', icon: '◎', detail: '命中したライバルを2.5秒間表示', modifiers: { reveal: true } },
-  { id: 'heavy-round', name: '強装弾', icon: '◆', detail: 'ダメージ+18%、連射速度-12%', modifiers: { damage: 1.18, fireRate: .88 } },
+  { id: 'heavy-round', name: '強装弾', icon: '◆', detail: 'ダメージ+18%、連射速度-16%', modifiers: { damage: 1.18, fireRate: .84 } },
   { id: 'second-wind', name: 'セカンドウィンド', icon: '+', detail: 'HP30%未満で移動速度+24%', modifiers: { lowHealthSpeed: 1.24 } },
   { id: 'gravity-shot', name: '重力弾', icon: 'G', detail: '命中したライバルを押し出す', modifiers: { gravityShot: true } },
 ];

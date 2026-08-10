@@ -9,6 +9,7 @@
     "build": "node scripts/build.mjs",
     "test": "node scripts/run-tests.mjs",
     "test:e2e": "playwright test",
+    "balance": "node scripts/analyze-balance.mjs",
     "check": "npm test && npm run build && node scripts/verify-dist.mjs"
   },
   "dependencies": {
