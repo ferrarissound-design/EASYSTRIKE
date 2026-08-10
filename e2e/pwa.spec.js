@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { expectGameShell, watchRuntimeFailures } from './helpers.js';
+import { expectGameShell, prepareGamePage, watchRuntimeFailures } from './helpers.js';
 
 test('PWA shell starts from cache on a new offline navigation URL', async ({ page, context }) => {
   const expectNoRuntimeFailures = watchRuntimeFailures(page);
   const serviceWorker = context.waitForEvent('serviceworker');
+  await prepareGamePage(page);
 
   await page.goto('/?pwa=1&e2e=pwa-seed');
   await expectGameShell(page);

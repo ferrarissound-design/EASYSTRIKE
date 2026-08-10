@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { expectGameShell, startFirstDuel, watchRuntimeFailures } from './helpers.js';
+import { expectGameShell, prepareGamePage, startFirstDuel, watchRuntimeFailures } from './helpers.js';
 
 test('mobile player gets touch controls without horizontal overflow', async ({ page }) => {
   const expectNoRuntimeFailures = watchRuntimeFailures(page);
+  await prepareGamePage(page);
 
   await page.goto('/?pwa=1&forceTouch=1&e2e=mobile');
   await expectGameShell(page);

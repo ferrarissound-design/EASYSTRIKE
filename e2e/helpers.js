@@ -1,5 +1,16 @@
 import { expect } from '@playwright/test';
 
+export async function prepareGamePage(page) {
+  await page.addInitScript(() => {
+    localStorage.setItem('firstBlastSettings', JSON.stringify({
+      quality: 'low',
+      qualityPinned: true,
+      sfx: 0,
+      bgm: 0,
+    }));
+  });
+}
+
 export function watchRuntimeFailures(page) {
   const failures = [];
   page.on('pageerror', error => failures.push(`pageerror: ${error.message}`));
