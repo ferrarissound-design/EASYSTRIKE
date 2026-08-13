@@ -435,6 +435,9 @@ body[data-fire-position="high"] { --fire-bottom: 48px; }
   /* 縦が足りないので残弾は武器名を落として数字だけにする。 */
   :is(.touch, .force-touch) .ammo span { display: none; }
   :is(.touch, .force-touch) .ammo b { font-size: 22px; }
+  /* 横持ちの低い画面では、右上から伸びるキルフィードが残弾表示や右側ボタンの弧に
+     届いてしまう。縦の余裕がないのでここでは表示自体をやめる。 */
+  :is(.touch, .force-touch) #killfeed { display: none; }
 }
 
 @media (max-width: 760px) {
