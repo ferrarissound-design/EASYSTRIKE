@@ -1,4 +1,4 @@
-# FIRST BLAST
+# EASYSTRIKE
 
 Three.jsで作られた、オフライン1対1アリーナFPSです。左右対称マップでCPUと一命制のラウンドを戦い、先に5ラウンド取ると勝利します。
 
